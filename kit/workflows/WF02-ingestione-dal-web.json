@@ -80,7 +80,7 @@
             },
             {
               "name": "sort",
-              "value": "id"
+              "value": "Id"
             }
           ]
         }
@@ -424,7 +424,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ id: $('Una pagina alla volta').item.json.id, doc_id: $('Prepara i dati').item.json.doc_id, stato: 'acquisito', data_acquisizione: $now.toFormat('yyyy-MM-dd'), hash_sha256: $('Calcola l\\'impronta').item.json.hash_sha256, provenienza: $('Una pagina alla volta').item.json.provenienza || 'web', titolo: $('Una pagina alla volta').item.json.titolo || $('Verifica e scarica la pagina').item.json.titolo, qualita_ocr: 'non_applicabile' }) }}"
+        "jsonBody": "={{ JSON.stringify({ id: $('Una pagina alla volta').item.json.Id, doc_id: $('Prepara i dati').item.json.doc_id, stato: 'acquisito', data_acquisizione: $now.toFormat('yyyy-MM-dd'), hash_sha256: $('Calcola l\\'impronta').item.json.hash_sha256, provenienza: $('Una pagina alla volta').item.json.provenienza || 'web', titolo: $('Una pagina alla volta').item.json.titolo || $('Verifica e scarica la pagina').item.json.titolo, qualita_ocr: 'non_applicabile' }) }}"
       },
       "id": "63c7b9d6-c9a3-5982-9464-fa83a7f552e6",
       "name": "Aggiorna il record",

@@ -377,7 +377,7 @@ def wf02():
         "va chiesto al docente."))
     t = w.trigger_manuale()
     p = w.parametri([["pausa_secondi", 5], ["massimo_pagine", 20]])
-    url, q = nocodb_get("corpus_documenti", "(stato,eq,da_acquisire)~and(url_o_percorso,like,http%)", 100, ordina="id")
+    url, q = nocodb_get("corpus_documenti", "(stato,eq,da_acquisire)~and(url_o_percorso,like,http%)", 100, ordina="Id")
     q[0] = ("limit", "={{ $json.massimo_pagine }}")
     leggi = w.http("Record da acquisire", "GET", url, (2, 0), cred=CRED_NOCODB, query=q)
     div = w.dividi("Un record per riga", "list", (3, 0))
@@ -404,7 +404,7 @@ def wf02():
     t2 = w.testo_in_file("HTML in un file", "html", "={{ $('Prepara i dati').item.json.doc_id }}.html", (12, 1))
     s2 = w.scrivi_file("Salva l'HTML", "=/dati/testi/{{ $('Prepara i dati').item.json.doc_id }}.html", (13, 1))
     agg = w.http("Aggiorna il record", "PATCH", NOCODB.format("corpus_documenti"), (14, 1), cred=CRED_NOCODB, corpo=(
-        "={{ JSON.stringify({ id: $('Una pagina alla volta').item.json.id, doc_id: $('Prepara i dati').item.json.doc_id, "
+        "={{ JSON.stringify({ id: $('Una pagina alla volta').item.json.Id, doc_id: $('Prepara i dati').item.json.doc_id, "
         "stato: 'acquisito', data_acquisizione: $now.toFormat('yyyy-MM-dd'), "
         "hash_sha256: $('Calcola l\\'impronta').item.json.hash_sha256, provenienza: $('Una pagina alla volta').item.json.provenienza || 'web', "
         "titolo: $('Una pagina alla volta').item.json.titolo || $('Verifica e scarica la pagina').item.json.titolo, "
@@ -543,7 +543,7 @@ def wf04():
     agg = w.nodo("Riunisci", "n8n-nodes-base.aggregate", 1, {"aggregate": "aggregateAllItemData",
                                                              "destinationFieldName": "registrate", "options": {}}, (12, 1))
     q_ = w.http("Metti in quarantena", "PATCH", NOCODB.format("corpus_documenti"), (13, 1), cred=CRED_NOCODB, corpo=(
-        "={{ JSON.stringify({ id: $('Un documento alla volta').item.json.id, stato: 'in_quarantena' }) }}"))
+        "={{ JSON.stringify({ id: $('Un documento alla volta').item.json.Id, stato: 'in_quarantena' }) }}"))
     msg = w.set("Documento in quarantena", [["messaggio", "={{ $('Un documento alla volta').item.json.doc_id + ': in quarantena con ' + $('Riunisci').item.json.registrate.length + ' segnalazioni. Decidi in NocoDB.' }}"]], (14, 1))
     w.catena(t, p, leggi, div, ciclo)
     w.collega(ciclo, ctrl, 1)
@@ -605,7 +605,7 @@ def wf05():
         "options": {}}, (12, 0))
     fallito = w.set("Estrazione non riuscita", [["error", "={{ 'LightRAG non è riuscito a indicizzare ' + $('Documento corrente').item.json.doc.doc_id + ': ' + ((($json.documents || [])[0] || {}).error_msg || 'motivo sconosciuto') + '. Il documento resta approvato: puoi riprovare più tardi o con un profilo diverso.' }}"]], (13, 1))
     segna = w.http("Segna come indicizzato", "PATCH", NOCODB.format("corpus_documenti"), (13, 0), cred=CRED_NOCODB, corpo=(
-        "={{ JSON.stringify({ id: $('Documento corrente').item.json.doc.id, stato: 'indicizzato' }) }}"))
+        "={{ JSON.stringify({ id: $('Documento corrente').item.json.doc.Id, stato: 'indicizzato' }) }}"))
     uso = w.registra_uso_ia("Registra uso IA", {
         "nodo": "Invia a LightRAG (estrazione entità e relazioni)", "modello": "lab-estrazione",
         "parametri": "={{ JSON.stringify({ embedding: 'embeddinggemma:300m', think: false, grafo: 'personale' }) }}",

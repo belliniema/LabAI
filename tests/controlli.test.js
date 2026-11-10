@@ -56,6 +56,18 @@ fs.readdirSync(cartella).filter(function (f) { return /\.atteso\.json$/.test(f);
   }));
 });
 
+prove.push(prova('PNG contrastato: grigio chiaro portato verso il nero, ingrandito 3 volte', function () {
+  const zlib = require('zlib');
+  const png = c.pngContrastato(fs.readFileSync(path.join(cartella, 'immagine_testo_minuscolo.png')));
+  assert.ok(png, 'PNG non elaborato');
+  assert.strictEqual(png.readUInt32BE(16), 3600);
+  assert.strictEqual(png.readUInt32BE(20), 1500);
+  const pix = zlib.inflateSync(png.slice(41, 41 + png.readUInt32BE(33)));
+  assert.strictEqual(pix[1], 255, 'il fondo bianco resta bianco');
+  assert.ok(Array.prototype.some.call(pix, function (v, i) { return i % 3601 && v < 40; }), 'nessun pixel scuro');
+  assert.strictEqual(c.pngContrastato(Buffer.from('non un png')), null);
+}));
+
 prove.push(prova('estratto inerte: invisibili resi visibili e troncamento', function () {
   const e = c.rendiInerte('a​b "c" ' + 'x'.repeat(400));
   assert.ok(e.indexOf('<U+200B>') > 0);

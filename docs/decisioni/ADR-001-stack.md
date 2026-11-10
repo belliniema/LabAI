@@ -49,12 +49,17 @@ Limiti `mem_limit` per container; la somma dei limiti è il tetto dello stack:
 | --- | --- |
 | caddy | 64 MB |
 | n8n | 640 MB |
-| nocodb | 448 MB |
-| lightrag | 768 MB |
+| nocodb (Node `--max-old-space-size=480`) | 640 MB |
+| lightrag | 640 MB |
 | lightrag-demo | 320 MB |
 | tika (JVM `-Xmx448m`) | 640 MB |
 | controlli | 96 MB |
-| **Totale** | **2976 MB** |
+| **Totale** | **3040 MB** |
+
+Misura del 2026-11-10 (Mac Apple Silicon, stack a riposo dopo l'init, `docker stats`): nocodb ~570 MB,
+n8n ~390 MB, lightrag ~330–420 MB, tika ~330 MB, lightrag-demo ~300 MB, caddy ~30 MB, controlli ~30 MB:
+circa 2,1 GB in totale. NocoDB 2026.10.1 con heap Node di 320 MB andava in *heap out of memory*
+all'avvio: il limite è salito a 640 MB, compensato abbassando lightrag a 640 MB.
 
 `init` gira solo al primo avvio e poi termina. Neo4j (profilo `avanzato`, 1 GB) è escluso dal
 tetto ed è consigliato solo con 16 GB di RAM.

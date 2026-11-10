@@ -392,7 +392,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ id: $('Documento corrente').item.json.doc.id, stato: 'indicizzato' }) }}"
+        "jsonBody": "={{ JSON.stringify({ id: $('Documento corrente').item.json.doc.Id, stato: 'indicizzato' }) }}"
       },
       "id": "5b3f02ad-b200-5b4d-915a-f380e865f17f",
       "name": "Segna come indicizzato",

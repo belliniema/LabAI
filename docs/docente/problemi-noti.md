@@ -1,24 +1,38 @@
 # Problemi noti e punti da verificare
 
-## Da verificare in fase 0–1 (non provati su hardware reale durante la scrittura del kit)
+## Verificato il 2026-11-10 (Mac Apple Silicon, 24 GB, profilo `leggero`, Ollama 0.40.13)
 
-Il kit è stato scritto su un Mac con 4 GB liberi su disco: **lo stack completo non è stato avviato**.
-Sono stati verificati: test statici (`make test`), servizio `controlli` sulle fixture, sintassi del
-launcher bash con la bash 3.2 di macOS, validità di `compose.yml`. Restano da provare (fase 1):
+Launcher fino al pannello verde, init completo, tutti i controlli di salute a 200, porte solo su
+`127.0.0.1`, `make test-integrazione` superato (8/8 fixture con Tika, thinking spento), un documento
+demo indicizzato nel grafo personale in 20 s con `qwen3.5:2b` e interrogato con riferimenti.
+Corretti durante la prova:
 
-1. **Creazione delle tabelle NocoDB** con l'API v2 (`init.js`): in particolare le colonne
-   `CreatedTime`/`LastModifiedTime` con titolo `creato_il`/`modificato_il` accanto ai campi di
-   sistema, e la colonna `id` di tipo `ID`.
-2. **PATCH e DELETE dei record NocoDB** con chiave primaria `id` nel corpo (WF02, WF04, WF05, init).
-3. **Import CLI di n8n** (`import:credentials`, `import:workflow --separate`) prima della creazione
-   dell'account proprietario, e assegnazione dei workflow al proprietario creato dopo.
-4. **Nodi Form** (WF00, WF06, WF07): pagina finale con *Form Ending* (`n8n-nodes-base.form`,
-   `operation: completion`) dopo un Form Trigger v2.2.
-5. **WF08**: `Merge` a 6 ingressi, `Aggregate` con `includeBinaries`, `Compression` con nomi di file
-   contenenti cartelle (`registri/…`).
-6. **Launcher Windows** (`kit/lib/laboratorio.ps1`): mai eseguito; verificare su Windows 11.
-7. `GET /graphs?label=*` di LightRAG per l'esportazione dell'intero grafo.
-8. Dimensione degli embedding (768) verificata dal launcher a ogni avvio.
+- **NocoDB va in *heap out of memory*** con `--max-old-space-size=320`: ora 480 MB di heap e
+  `mem_limit` 640 MB (ADR-001). Consumo reale a riposo dello stack: circa 2,1 GB.
+- **Chiave primaria dei record NocoDB**: l'API v2 la restituisce come `Id` (non `id`) e
+  `sort=id` dà `ERR_FIELD_NOT_FOUND`. PATCH e DELETE accettano `id` o `Id` nel corpo. Corretti
+  WF02, WF04, WF05. NocoDB aggiunge da sé i campi di sistema `CreatedAt`/`UpdatedAt` accanto a
+  `creato_il`/`modificato_il` (ridondanti ma innocui).
+- **OCR delle immagini**: Tesseract non legge righe minuscole grigio chiaro, nemmeno con le
+  opzioni di preelaborazione di Tika. Il servizio `controlli` fa un secondo passaggio OCR su una
+  copia del PNG con contrasto aumentato (solo PNG a 8 bit; JPEG e altri formati solo OCR normale).
+- **Download dei modelli**: Ollama può interrompersi con `download stalled`; il launcher ora
+  riprova fino a 3 volte (il download riprende da dove si era fermato).
+- **Spazio su disco**: i 15 GB sono richiesti solo se mancano immagini Docker da scaricare.
+
+## Ancora da verificare
+
+1. **Import CLI di n8n** prima della creazione dell'account proprietario: l'import riesce;
+   resta da controllare che i workflow compaiano al proprietario creato dopo, dal browser.
+2. **Esecuzione dei workflow dall'editor** (WF00–WF09) sul corpus demo modificando solo
+   `PARAMETRI`, in particolare i nodi Form (WF00, WF06, WF07) e WF08 (Merge a 6 ingressi,
+   Aggregate con binari, Compression con cartelle).
+3. **Aggiornamento del kit**: init gira una sola volta (marcatore `.laboratorio-init-v1`); una
+   nuova versione dei workflow richiede di incrementare la versione del marcatore o un comando
+   di aggiornamento. Nella prova i workflow corretti sono stati reimportati cancellando il
+   marcatore e rieseguendo init (idempotente: riusa tabelle e token).
+4. **Launcher Windows** (`kit/lib/laboratorio.ps1`): mai eseguito; verificare su Windows 11.
+5. **Grafo demo** (`make demo-graph`) e golden questions: non ancora costruito.
 
 ## Linux: Ollama non raggiungibile dai container
 

@@ -8,9 +8,13 @@ cd "$RADICE"
 
 trovati=0
 segnala() { echo "SEGRETO? $1"; trovati=1; }
+# I file esclusi da git (kit/.env, kit/dati/, kit/.stato/ creati avviando il laboratorio) non
+# finiscono nel repository né nel pacchetto: si saltano. Fuori da un repository git si controlla tutto.
+ignorato() { git -C "$RADICE" check-ignore -q "$1" 2>/dev/null; }
+senza_ignorati() { while IFS= read -r riga; do ignorato "${riga%%:*}" || echo "$riga"; done; }
 
 # File che non devono mai esistere nel repository o nel kit
-while IFS= read -r f; do segnala "file vietato: $f"; done < <(
+while IFS= read -r f; do ignorato "$f" || segnala "file vietato: $f"; done < <(
   find . -path ./.git -prune -o \( -name '.env' -o -name 'CREDENZIALI.txt' -o -name '*.pem' -o -name '*.key' \
     -o -name 'laboratorio-registri.json' \) -print | grep -v '^./.git$' || true)
 
@@ -34,13 +38,13 @@ done
 
 # Schemi tipici di chiavi e token nei file di testo del repository
 schemi='(sk-[A-Za-z0-9]{20,}|xox[abpr]-[A-Za-z0-9-]{10,}|ghp_[A-Za-z0-9]{30,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----|eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.)'
-if grep -rIEn --exclude-dir=.git --exclude-dir=node_modules --exclude='check_secrets.sh' "$schemi" . ; then
+if grep -rIEn --exclude-dir=.git --exclude-dir=node_modules --exclude='check_secrets.sh' "$schemi" . | senza_ignorati | grep . ; then
   segnala "schema di chiave trovato (vedi sopra)"
 fi
 
 # Assegnazioni di segreti con valore letterale nei file di configurazione del kit
 if grep -rIEn --include='*.env' --include='*.yml' --include='*.yaml' \
-    '^\s*(LIGHTRAG_API_KEY|LIGHTRAG_DEMO_API_KEY|N8N_ENCRYPTION_KEY|NC_ADMIN_PASSWORD|NC_AUTH_JWT_SECRET|NEO4J_PASSWORD|TOKEN_SECRET)\s*[:=]\s*[^$ "{][^ ]*' kit/ ; then
+    '^\s*(LIGHTRAG_API_KEY|LIGHTRAG_DEMO_API_KEY|N8N_ENCRYPTION_KEY|NC_ADMIN_PASSWORD|NC_AUTH_JWT_SECRET|NEO4J_PASSWORD|TOKEN_SECRET)\s*[:=]\s*[^$ "{][^ ]*' kit/ | senza_ignorati | grep . ; then
   segnala "segreto con valore letterale in un file di configurazione"
 fi
 

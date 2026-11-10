@@ -373,6 +373,88 @@ function richiesta(indirizzo, opzioni, corpo) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Testo chiaro su fondo chiaro nelle immagini: Tesseract non vede le righe grigio chiaro
+// e minuscole. Per i PNG si prepara una copia in scala di grigi con contrasto aumentato
+// (grigi tra il 60% e il 95% portati verso il nero) e ingrandita 2-3 volte, che Tika legge
+// in un secondo passaggio OCR. Solo PNG a 8 bit non interlacciati; gli altri formati
+// passano solo dall'OCR normale.
+// ---------------------------------------------------------------------------
+const TABELLA_CRC = (function () {
+  const t = [];
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+    t.push(c >>> 0);
+  }
+  return t;
+})();
+
+function crc32(buf) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < buf.length; i++) c = TABELLA_CRC[(c ^ buf[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function bloccoPng(tipo, dati) {
+  const lung = Buffer.alloc(4);
+  lung.writeUInt32BE(dati.length, 0);
+  const corpo = Buffer.concat([Buffer.from(tipo, 'latin1'), dati]);
+  const crc = Buffer.alloc(4);
+  crc.writeUInt32BE(crc32(corpo), 0);
+  return Buffer.concat([lung, corpo, crc]);
+}
+
+function pngContrastato(buf) {
+  if (buf.length < 33 || buf.slice(1, 4).toString('latin1') !== 'PNG') return null;
+  let pos = 8, w = 0, h = 0, profondita = 0, colore = 0, interlacciato = 0;
+  const idat = [];
+  while (pos + 8 <= buf.length) {
+    const lung = buf.readUInt32BE(pos), tipo = buf.slice(pos + 4, pos + 8).toString('latin1');
+    const dati = buf.slice(pos + 8, pos + 8 + lung);
+    if (tipo === 'IHDR') { w = dati.readUInt32BE(0); h = dati.readUInt32BE(4); profondita = dati[8]; colore = dati[9]; interlacciato = dati[12]; }
+    if (tipo === 'IDAT') idat.push(dati);
+    if (tipo === 'IEND') break;
+    pos += 12 + lung;
+  }
+  const canali = { 0: 1, 2: 3, 4: 2, 6: 4 }[colore];
+  // Il servizio ha 96 MB di memoria: al massimo 16 milioni di pixel dopo l'ingrandimento
+  const scala = w * h * 9 <= 16e6 ? 3 : w * h * 4 <= 16e6 ? 2 : 0;
+  if (!canali || profondita !== 8 || interlacciato || !scala) return null;
+  const grezzo = zlib.inflateSync(Buffer.concat(idat));
+  const riga = w * canali;
+  const pix = Buffer.alloc(riga * h);
+  // Ricostruzione dei filtri PNG (None, Sub, Up, Average, Paeth)
+  for (let y = 0; y < h; y++) {
+    const f = grezzo[y * (riga + 1)], src = y * (riga + 1) + 1, dst = y * riga;
+    for (let x = 0; x < riga; x++) {
+      const a = x >= canali ? pix[dst + x - canali] : 0;
+      const b = y ? pix[dst - riga + x] : 0;
+      const c = x >= canali && y ? pix[dst - riga + x - canali] : 0;
+      let p = grezzo[src + x];
+      if (f === 1) p += a;
+      else if (f === 2) p += b;
+      else if (f === 3) p += (a + b) >> 1;
+      else if (f === 4) { const pa = Math.abs(b - c), pb = Math.abs(a - c), pc = Math.abs(a + b - 2 * c); p += pa <= pb && pa <= pc ? a : pb <= pc ? b : c; }
+      pix[dst + x] = p & 0xFF;
+    }
+  }
+  // Grigio (con trasparenza su fondo bianco), livelli 60%–95% → 0–255, ingrandimento
+  const W = w * scala, H = h * scala, uscita = Buffer.alloc((W + 1) * H);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = y * riga + x * canali;
+      let l = canali >= 3 ? (pix[i] * 299 + pix[i + 1] * 587 + pix[i + 2] * 114) / 1000 : pix[i];
+      if (canali === 2 || canali === 4) { const al = pix[i + canali - 1] / 255; l = l * al + 255 * (1 - al); }
+      const v = Math.max(0, Math.min(255, Math.round((l - 153) * 255 / (242 - 153))));
+      for (let dy = 0; dy < scala; dy++) uscita.fill(v, (y * scala + dy) * (W + 1) + 1 + x * scala, (y * scala + dy) * (W + 1) + 1 + (x + 1) * scala);
+    }
+  }
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(W, 0); ihdr.writeUInt32BE(H, 4); ihdr[8] = 8; ihdr[9] = 0;
+  return Buffer.concat([buf.slice(0, 8), bloccoPng('IHDR', ihdr), bloccoPng('IDAT', zlib.deflateSync(uscita)), bloccoPng('IEND', Buffer.alloc(0))]);
+}
+
 function tika(percorso, buf, intestazioni) {
   return richiesta(TIKA_URL + percorso, { method: 'PUT', headers: Object.assign({ 'Content-Length': buf.length }, intestazioni) }, buf)
     .then(function (r) {
@@ -438,9 +520,14 @@ function controllaDocumento(input) {
     }));
   }
   if (usaTika && /\.(png|jpe?g|tiff?|gif|bmp|webp)$/.test(nome)) {
-    passiTika.push(tika('/tika/text', file, { 'X-Tika-OCRLanguage': 'ita+eng' }).then(function (ocr) {
-      return controllaIstruzioni(ocr, 'testo_in_immagine').concat(controllaBase64EUrl(ocr, allowlist));
-    }));
+    const varianti = [file];
+    const contrastato = /\.png$/.test(nome) ? pngContrastato(file) : null;
+    if (contrastato) varianti.push(contrastato);
+    varianti.forEach(function (immagine) {
+      passiTika.push(tika('/tika/text', immagine, { 'X-Tika-OCRLanguage': 'ita+eng' }).then(function (ocr) {
+        return controllaIstruzioni(ocr, 'testo_in_immagine').concat(controllaBase64EUrl(ocr, allowlist));
+      }));
+    });
   }
   if (usaTika) {
     passiTika.push(richiesta(TIKA_URL + '/meta', { method: 'PUT', headers: { Accept: 'application/json', 'Content-Length': file.length } }, file).then(function (r) {
@@ -639,6 +726,7 @@ module.exports = {
   controllaPdf: controllaPdf,
   controllaOffice: controllaOffice,
   confrontaStratoEOcr: confrontaStratoEOcr,
+  pngContrastato: pngContrastato,
   controllaDocumento: controllaDocumento,
   regoleRobots: regoleRobots,
   robotsConsente: robotsConsente,

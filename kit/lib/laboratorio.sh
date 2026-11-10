@@ -96,6 +96,8 @@ ram_gb() {
   esac
 }
 
+immagini_mancanti() { compose config --images 2>/dev/null | while read -r i; do "$DOCKER" image inspect "$i" >/dev/null 2>&1 || echo "$i"; done; }
+
 disco_libero_gb() { df -Pk "$KIT" | awk 'NR==2 {printf "%d", $4/1024/1024}'; }
 
 porta_occupata() { (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null; }
@@ -115,7 +117,8 @@ controlla_risorse() {
   fi
   [ "$mem_docker" -gt 0 ] && ok "Memoria assegnata a Docker: ${mem_docker} MB"
   DISCO_GB="$(disco_libero_gb)"
-  if [ "$DISCO_GB" -lt 15 ] && ! [ -f "$STATO/primo-avvio-completato" ]; then
+  # 15 GB servono solo finché ci sono immagini da scaricare (circa 4 GB compressi, il doppio una volta estratte)
+  if [ "$DISCO_GB" -lt 15 ] && ! [ -f "$STATO/primo-avvio-completato" ] && [ -n "$(immagini_mancanti)" ]; then
     fallisci "Sul disco restano solo ${DISCO_GB} GB liberi: per il primo avvio ne servono almeno 15." \
       "Libera spazio (svuota il Cestino, sposta foto e video su un disco esterno) e fai di nuovo doppio clic su Avvia laboratorio."
   fi
@@ -161,7 +164,7 @@ scegli_profilo() {
   local forzato=""
   [ -f "$STATO/profilo-scelto" ] && forzato="$(tr -dc 'a-z' < "$STATO/profilo-scelto")"
   if [ "$forzato" = "standard" ] || [ "$forzato" = "leggero" ]; then
-    PROFILO="$forzato"; ok "Profilo «$PROFILO» scelto dal pannello"
+    PROFILO="$forzato"; ok "Profilo «${PROFILO}» scelto dal pannello"
   elif [ "$RAM_GB" -ge "$STANDARD_RAM_MIN_GB" ]; then
     PROFILO="standard"; ok "Profilo «standard» (${STANDARD_LLM}, contesto ${STANDARD_NUM_CTX} token)"
   else
@@ -257,7 +260,7 @@ carica_offline() {
 scarica_immagini() {
   passo "Immagini Docker"
   local mancanti
-  mancanti="$(compose config --images 2>/dev/null | while read -r i; do "$DOCKER" image inspect "$i" >/dev/null 2>&1 || echo "$i"; done)"
+  mancanti="$(immagini_mancanti)"
   if [ -z "$mancanti" ]; then ok "Tutte le immagini sono già presenti"; return; fi
   echo "  Scarico le immagini mancanti (circa 4 GB la prima volta: può richiedere molti minuti)."
   compose pull --quiet 2>&1 | tee -a "$LOG" >/dev/null &
@@ -274,16 +277,14 @@ modello_presente() { curl -fsS -m 10 "$OLLAMA/api/tags" | grep -q "\"name\":\"$1
 scarica_modello() {
   local m="$1"
   if modello_presente "$m"; then ok "Modello $m già presente"; return; fi
-  echo "  Scarico il modello $m…"
-  curl -sS -N -m 7200 "$OLLAMA/api/pull" -d "{\"model\":\"$m\",\"stream\":true}" 2>>"$LOG" | while IFS= read -r riga; do
-    case "$riga" in
-      *'"error"'*) echo "$riga" >> "$LOG"; echo "ERRORE" > "$STATO/pull-errore" ;;
-      *'"completed"'*)
-        local tot com
-        tot=$(echo "$riga" | sed -E 's/.*"total":([0-9]+).*/\1/')
-        com=$(echo "$riga" | sed -E 's/.*"completed":([0-9]+).*/\1/')
-        [ "$tot" -gt 0 ] 2>/dev/null && printf '\r  %s: %3d%% (%d MB di %d MB)   ' "$m" $((com * 100 / tot)) $((com / 1048576)) $((tot / 1048576)) ;;
-    esac
+  echo "  Scarico il modello ${m}…"
+  # Ollama riprende i download interrotti: in caso di errore («download stalled») si riprova fino a 3 volte
+  local tentativo
+  for tentativo in 1 2 3; do
+    rm -f "$STATO/pull-errore"
+    [ "$tentativo" -gt 1 ] && printf '\n  Il download si è interrotto: riprovo (tentativo %d di 3)…\n' "$tentativo"
+    scarica_modello_una_volta "$m"
+    [ -f "$STATO/pull-errore" ] || break
   done
   echo
   if [ -f "$STATO/pull-errore" ] || ! modello_presente "$m"; then
@@ -292,6 +293,23 @@ scarica_modello() {
       "Controlla la connessione a internet e lo spazio su disco (o usa la chiavetta del dipartimento) e fai di nuovo doppio clic su Avvia laboratorio."
   fi
   ok "Modello $m scaricato"
+}
+
+scarica_modello_una_volta() {
+  local m="$1" ultimo=""
+  curl -sS -N -m 7200 "$OLLAMA/api/pull" -d "{\"model\":\"$m\",\"stream\":true}" 2>>"$LOG" | while IFS= read -r riga; do
+    case "$riga" in
+      *'"error"'*) echo "$riga" >> "$LOG"; echo "ERRORE" > "$STATO/pull-errore" ;;
+      *'"completed"'*)
+        local tot com
+        tot=$(echo "$riga" | sed -E 's/.*"total":([0-9]+).*/\1/')
+        com=$(echo "$riga" | sed -E 's/.*"completed":([0-9]+).*/\1/')
+        # stampa solo quando la percentuale cambia, per non riempire il registro
+        [ "$tot" -gt 0 ] 2>/dev/null && [ "$((com * 100 / tot))" != "$ultimo" ] && {
+          ultimo=$((com * 100 / tot))
+          printf '\r  %s: %3d%% (%d MB di %d MB)   ' "$m" "$ultimo" $((com / 1048576)) $((tot / 1048576)); } ;;
+    esac
+  done
 }
 
 prepara_modelli() {
