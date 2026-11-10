@@ -1,0 +1,454 @@
+{
+ "base": "Laboratorio IA",
+ "tabelle": [
+  {
+   "nome": "corpus_documenti",
+   "descrizione": "Registro del corpus: provenienza, licenza, hash, stato di ogni documento",
+   "chiave": "doc_id",
+   "campi": [
+    [
+     "doc_id",
+     "SingleLineText"
+    ],
+    [
+     "titolo",
+     "SingleLineText"
+    ],
+    [
+     "autore",
+     "SingleLineText"
+    ],
+    [
+     "data_documento",
+     "SingleLineText"
+    ],
+    [
+     "tipologia",
+     {
+      "uidt": "SingleSelect",
+      "opzioni": [
+       "lettera",
+       "articolo",
+       "verbale",
+       "diario",
+       "inventario",
+       "altro"
+      ]
+     }
+    ],
+    [
+     "provenienza",
+     {
+      "uidt": "SingleSelect",
+      "opzioni": [
+       "locale",
+       "web",
+       "api"
+      ]
+     }
+    ],
+    [
+     "url_o_percorso",
+     "SingleLineText"
+    ],
+    [
+     "istituzione_conservatrice",
+     "SingleLineText"
+    ],
+    [
+     "licenza",
+     "SingleLineText"
+    ],
+    [
+     "data_acquisizione",
+     "Date"
+    ],
+    [
+     "hash_sha256",
+     "SingleLineText"
+    ],
+    [
+     "lingua",
+     "SingleLineText"
+    ],
+    [
+     "qualita_ocr",
+     {
+      "uidt": "SingleSelect",
+      "opzioni": [
+       "buona",
+       "media",
+       "scarsa",
+       "non_applicabile"
+      ]
+     }
+    ],
+    [
+     "stato",
+     {
+      "uidt": "SingleSelect",
+      "opzioni": [
+       "da_acquisire",
+       "acquisito",
+       "in_quarantena",
+       "approvato",
+       "indicizzato",
+       "escluso"
+      ]
+     }
+    ],
+    [
+     "motivazione_inclusione",
+     "LongText"
+    ],
+    [
+     "note",
+     "LongText"
+    ]
+   ]
+  },
+  {
+   "nome": "segnalazioni_sicurezza",
+   "descrizione": "Segnalazioni del controllo di sicurezza (WF04); la decisione la prende lo studente",
+   "chiave": "segnalazione_id",
+   "campi": [
+    [
+     "segnalazione_id",
+     "SingleLineText"
+    ],
+    [
+     "doc_id",
+     "SingleLineText"
+    ],
+    [
+     "tipo",
+     {
+      "uidt": "SingleSelect",
+      "opzioni": [
+       "testo_nascosto",
+       "istruzione_sospetta",
+       "carattere_invisibile",
+       "metadati",
+       "testo_in_immagine",
+       "dominio_non_affidabile"
+      ]
+     }
+    ],
+    [
+     "estratto",
+     "LongText"
+    ],
+    [
+     "decisione",
+     {
+      "uidt": "SingleSelect",
+      "opzioni": [
+       "escludere",
+       "ripulire",
+       "mantenere_con_nota",
+       "da_decidere"
+      ]
+     }
+    ],
+    [
+     "motivazione",
+     "LongText"
+    ]
+   ]
+  },
+  {
+   "nome": "entita",
+   "descrizione": "Entità principali riconciliate con identificatori persistenti",
+   "chiave": "entita_id",
+   "campi": [
+    [
+     "entita_id",
+     "SingleLineText"
+    ],
+    [
+     "nome_canonico",
+     "SingleLineText"
+    ],
+    [
+     "tipo",
+     {
+      "uidt": "SingleSelect",
+      "opzioni": [
+       "Persona",
+       "Luogo",
+       "Organizzazione",
+       "Evento",
+       "Documento",
+       "Data"
+      ]
+     }
+    ],
+    [
+     "varianti",
+     "LongText"
+    ],
+    [
+     "wikidata_qid",
+     "SingleLineText"
+    ],
+    [
+     "viaf_id",
+     "SingleLineText"
+    ],
+    [
+     "geonames_id",
+     "SingleLineText"
+    ],
+    [
+     "doc_id_fonti",
+     "SingleLineText"
+    ],
+    [
+     "note",
+     "LongText"
+    ]
+   ]
+  },
+  {
+   "nome": "correzioni_grafo",
+   "descrizione": "Ogni correzione manuale del grafo, con motivazione e fonte",
+   "chiave": "correzione_id",
+   "campi": [
+    [
+     "correzione_id",
+     "SingleLineText"
+    ],
+    [
+     "operazione",
+     {
+      "uidt": "SingleSelect",
+      "opzioni": [
+       "fusione",
+       "eliminazione",
+       "rinomina",
+       "nuova_relazione",
+       "modifica_relazione",
+       "conferma"
+      ]
+     }
+    ],
+    [
+     "oggetto",
+     "SingleLineText"
+    ],
+    [
+     "prima",
+     "LongText"
+    ],
+    [
+     "dopo",
+     "LongText"
+    ],
+    [
+     "motivazione",
+     "LongText"
+    ],
+    [
+     "doc_id_fonte",
+     "SingleLineText"
+    ]
+   ]
+  },
+  {
+   "nome": "interrogazioni",
+   "descrizione": "Domande al grafo e risposte, con contesto e riferimenti (WF06)",
+   "chiave": "q_id",
+   "campi": [
+    [
+     "q_id",
+     "SingleLineText"
+    ],
+    [
+     "domanda",
+     "LongText"
+    ],
+    [
+     "tipologia",
+     {
+      "uidt": "SingleSelect",
+      "opzioni": [
+       "fattuale",
+       "relazionale",
+       "comparativa",
+       "interpretativa"
+      ]
+     }
+    ],
+    [
+     "grafo",
+     {
+      "uidt": "SingleSelect",
+      "opzioni": [
+       "personale",
+       "demo"
+      ]
+     }
+    ],
+    [
+     "modalita",
+     {
+      "uidt": "SingleSelect",
+      "opzioni": [
+       "naive",
+       "local",
+       "global",
+       "hybrid",
+       "mix"
+      ]
+     }
+    ],
+    [
+     "modello_llm",
+     "SingleLineText"
+    ],
+    [
+     "digest_modello",
+     "SingleLineText"
+    ],
+    [
+     "modello_embedding",
+     "SingleLineText"
+    ],
+    [
+     "prompt_id",
+     "SingleLineText"
+    ],
+    [
+     "prompt_versione",
+     "SingleLineText"
+    ],
+    [
+     "temperatura",
+     "Decimal"
+    ],
+    [
+     "risposta",
+     "LongText"
+    ],
+    [
+     "riferimenti_doc_id",
+     "SingleLineText"
+    ],
+    [
+     "contesto_recuperato",
+     "LongText"
+    ],
+    [
+     "n8n_execution_id",
+     "SingleLineText"
+    ]
+   ]
+  },
+  {
+   "nome": "verifiche",
+   "descrizione": "Verifica delle affermazioni: l'esito lo scrive solo lo studente",
+   "chiave": "v_id",
+   "campi": [
+    [
+     "v_id",
+     "SingleLineText"
+    ],
+    [
+     "q_id",
+     "SingleLineText"
+    ],
+    [
+     "affermazione",
+     "LongText"
+    ],
+    [
+     "doc_id_fonte",
+     "SingleLineText"
+    ],
+    [
+     "passo_citato",
+     "LongText"
+    ],
+    [
+     "esito",
+     {
+      "uidt": "SingleSelect",
+      "opzioni": [
+       "confermata",
+       "parziale",
+       "non_supportata",
+       "contraddetta",
+       "non_verificabile"
+      ]
+     }
+    ],
+    [
+     "tipo_errore",
+     {
+      "uidt": "SingleSelect",
+      "opzioni": [
+       "nessuno",
+       "allucinazione",
+       "attribuzione_errata",
+       "anacronismo",
+       "omissione",
+       "sovrainterpretazione",
+       "distorsione_corpus"
+      ]
+     }
+    ],
+    [
+     "note",
+     "LongText"
+    ]
+   ]
+  },
+  {
+   "nome": "uso_ia",
+   "descrizione": "Un evento per ogni chiamata a un modello (WF09)",
+   "chiave": "evento_id",
+   "campi": [
+    [
+     "evento_id",
+     "SingleLineText"
+    ],
+    [
+     "workflow",
+     "SingleLineText"
+    ],
+    [
+     "nodo",
+     "SingleLineText"
+    ],
+    [
+     "modello",
+     "SingleLineText"
+    ],
+    [
+     "digest_modello",
+     "SingleLineText"
+    ],
+    [
+     "parametri",
+     "LongText"
+    ],
+    [
+     "prompt_id",
+     "SingleLineText"
+    ],
+    [
+     "prompt_versione",
+     "SingleLineText"
+    ],
+    [
+     "doc_id_coinvolti",
+     "SingleLineText"
+    ],
+    [
+     "n8n_execution_id",
+     "SingleLineText"
+    ]
+   ]
+  }
+ ]
+}

@@ -1,0 +1,14 @@
+# Domini da cui WF02 puo' scaricare pagine (uno per riga, sottodomini inclusi).
+# Il docente valuta e approva ogni aggiunta. Righe che iniziano con # = commento.
+it.wikisource.org
+it.wikipedia.org
+www.wikidata.org
+query.wikidata.org
+commons.wikimedia.org
+www.europeana.eu
+api.europeana.eu
+archive.org
+www.liberliber.it
+www.internetculturale.it
+digitale.bnc.roma.sbn.it
+www.gutenberg.org

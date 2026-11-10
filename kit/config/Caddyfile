@@ -1,0 +1,67 @@
+# Pannello del laboratorio (CLAUDE.md §5).
+# Caddy ascolta sulla porta 80 del container, pubblicata solo su 127.0.0.1:8000.
+# /salute/<servizio> fa da proxy verso i controlli di salute: la pagina interroga la stessa
+# origine, senza problemi di CORS. Un servizio spento risponde 502 = indicatore rosso.
+{
+	admin off
+	auto_https off
+	persist_config off
+}
+
+:80 {
+	encode gzip
+
+	handle /salute/n8n {
+		rewrite * /healthz
+		reverse_proxy n8n:5678
+	}
+	handle /salute/nocodb {
+		rewrite * /api/v1/health
+		reverse_proxy nocodb:8080
+	}
+	handle /salute/lightrag {
+		rewrite * /health
+		reverse_proxy lightrag:9621
+	}
+	handle /salute/lightrag-demo {
+		rewrite * /health
+		reverse_proxy lightrag-demo:9621
+	}
+	handle /salute/tika {
+		rewrite * /tika
+		reverse_proxy tika:9998
+	}
+	handle /salute/controlli {
+		rewrite * /salute
+		reverse_proxy controlli:8099
+	}
+	handle /salute/ollama {
+		rewrite * /api/version
+		reverse_proxy host.docker.internal:11434 {
+			header_up Host localhost:11434
+		}
+	}
+	handle /salute/neo4j {
+		rewrite * /
+		reverse_proxy neo4j:7474
+	}
+
+	# Azioni del pannello (scelta del profilo, Neo4j): scrivono solo file di preferenza in .stato.
+	# Il servizio controlli richiede l'intestazione X-Laboratorio, che una pagina di un altro sito
+	# non può inviare senza un preflight CORS che qui non viene mai autorizzato.
+	handle /azioni/* {
+		reverse_proxy controlli:8099
+	}
+
+	# Stato scritto dal launcher (profilo, spazio libero, versione) e dal contenitore init.
+	handle /stato/* {
+		root * /srv
+		header Cache-Control "no-store"
+		file_server
+	}
+
+	handle {
+		root * /srv/pannello
+		file_server
+	}
+}

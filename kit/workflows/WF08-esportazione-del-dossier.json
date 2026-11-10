@@ -1,0 +1,1166 @@
+{
+  "id": "labWF08dossier00",
+  "name": "WF08 · Esportazione del dossier",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Che cosa fa\nRaccoglie in un unico archivio zip in `dossier/` tutto ciò che serve per l'idoneità: i registri in CSV, i workflow in JSON, il grafo (nodi e archi in CSV), i prompt usati e un riepilogo dei requisiti.\n\n## Input\nI registri NocoDB, il grafo personale, i prompt del kit, i workflow (tramite l'API locale di n8n).\n\n## Output\n`dossier/<nome>-<data>.zip`.\n\n## Che cosa puoi modificare\nSolo PARAMETRI: `nome_dossier` (es. cognome-nome).\n\n## Rischi e limiti\nPer esportare i workflow serve, una volta sola, la chiave API di n8n nella credenziale «n8n · API locale» (scheda WF08): senza chiave l'archivio si crea lo stesso, senza i workflow. Controlla che nel dossier non ci siano chiavi personali (es. la chiave Europeana in WF03).",
+        "height": 420,
+        "width": 760,
+        "color": 4
+      },
+      "id": "e93ccce4-cdd3-5e40-a638-981c36b8b082",
+      "name": "Nota del workflow",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -460
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "211e7122-f16b-5833-bb1c-f3cfcb88f175",
+      "name": "Avvia a mano",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cac50679-e034-5735-b780-2d585e716f37",
+              "name": "nome_dossier",
+              "value": "dossier",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "42ef429b-b090-5af4-ba9b-9c90298fffd0",
+      "name": "PARAMETRI",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        260,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Ogni tabella diventa un file CSV.",
+        "height": 120,
+        "width": 520,
+        "color": 7
+      },
+      "id": "6de1ddda-828a-5952-8412-2a3a230839ee",
+      "name": "Nota · registri",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        480,
+        -550
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "0c2ee152-4778-5e08-8355-c485eb7d84df",
+              "name": "tabelle",
+              "value": "[{\"nome\": \"corpus_documenti\", \"id\": \"__TBL_corpus_documenti__\"}, {\"nome\": \"segnalazioni_sicurezza\", \"id\": \"__TBL_segnalazioni_sicurezza__\"}, {\"nome\": \"entita\", \"id\": \"__TBL_entita__\"}, {\"nome\": \"correzioni_grafo\", \"id\": \"__TBL_correzioni_grafo__\"}, {\"nome\": \"interrogazioni\", \"id\": \"__TBL_interrogazioni__\"}, {\"nome\": \"verifiche\", \"id\": \"__TBL_verifiche__\"}, {\"nome\": \"uso_ia\", \"id\": \"__TBL_uso_ia__\"}]",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fbf12383-0648-52d5-b5ad-29b52a208d0e",
+      "name": "Elenco dei registri",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        520,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "tabelle",
+        "options": {}
+      },
+      "id": "0427cc1e-4b7f-5b54-828a-5436c16f6792",
+      "name": "Un registro per riga",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        780,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "c60f5c89-daa1-54c1-9942-03f156c2f66f",
+      "name": "Un registro alla volta",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1040,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://nocodb:8080/api/v2/tables/{{ $json.id }}/records",
+        "options": {
+          "timeout": 120000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "limit",
+              "value": "1000"
+            }
+          ]
+        }
+      },
+      "id": "6b4c35c9-4709-58cc-959f-6612a2c89b7b",
+      "name": "Scarica il registro",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1300,
+        -200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "labCredNocoDB0001",
+          "name": "NocoDB · registri"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "list",
+        "options": {}
+      },
+      "id": "e9cf9807-abe4-5fba-ac6e-2e6c4035aa36",
+      "name": "Righe del registro",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1560,
+        -200
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "csv",
+        "options": {
+          "fileName": "={{ 'registri/' + $('Un registro alla volta').item.json.nome + '.csv' }}"
+        }
+      },
+      "id": "7719f26b-0cc3-5bb4-911c-bc175b042eb7",
+      "name": "Registro in CSV",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        1820,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Nodi e archi del grafo personale, così come li ha estratti LightRAG.",
+        "height": 120,
+        "width": 520,
+        "color": 7
+      },
+      "id": "7f5d6f17-4c79-54ed-8a24-04a9012d418d",
+      "name": "Nota · grafo",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        480,
+        -150
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://lightrag:9621/graphs",
+        "options": {
+          "timeout": 120000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "label",
+              "value": "*"
+            },
+            {
+              "name": "max_depth",
+              "value": "10"
+            },
+            {
+              "name": "max_nodes",
+              "value": "5000"
+            }
+          ]
+        }
+      },
+      "id": "e6c9afc1-a67b-5a32-931d-fa3708008aa7",
+      "name": "Scarica il grafo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        520,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "labCredLightRAG01",
+          "name": "LightRAG · grafo personale"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "nodes",
+        "options": {}
+      },
+      "id": "1e838579-4417-5f28-8633-8466b650dfce",
+      "name": "Nodi del grafo",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        780,
+        0
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "csv",
+        "options": {
+          "fileName": "grafo/nodi.csv"
+        }
+      },
+      "id": "0ad62b31-0887-5496-ad1f-bb365f6eca22",
+      "name": "Nodi in CSV",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        1040,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "edges",
+        "options": {}
+      },
+      "id": "b126bc09-964b-5ba1-92db-16d67fc57d31",
+      "name": "Archi del grafo",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        780,
+        200
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "csv",
+        "options": {
+          "fileName": "grafo/archi.csv"
+        }
+      },
+      "id": "fc087130-d55b-5091-ad03-aeba97ca9b34",
+      "name": "Archi in CSV",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        1040,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "fileSelector": "/kit-prompts/*.md",
+        "options": {}
+      },
+      "id": "bc2879d0-15bf-5cd3-a437-08129d33f200",
+      "name": "Leggi i prompt",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        520,
+        400
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://localhost:5678/api/v1/workflows",
+        "options": {
+          "timeout": 120000
+        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "n8nApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "limit",
+              "value": "100"
+            }
+          ]
+        }
+      },
+      "id": "a6fb4402-3e67-5527-9470-d81e2e02a776",
+      "name": "Scarica i workflow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        520,
+        600
+      ],
+      "credentials": {
+        "n8nApi": {
+          "id": "labCredN8nApi0001",
+          "name": "n8n · API locale"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data",
+        "options": {}
+      },
+      "id": "f6815e96-6d3f-5d3d-b51b-6f4c5e2bdf66",
+      "name": "Un workflow per riga",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        780,
+        600
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "toJson",
+        "mode": "each",
+        "options": {
+          "fileName": "={{ 'workflow/' + $json.name.replace(/[^A-Za-z0-9 ·_-]/g, '') + '.json' }}"
+        }
+      },
+      "id": "effebebf-2915-59af-b789-2f6bfacd0a48",
+      "name": "Workflow in JSON",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        1040,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Conta quanto chiede l'idoneità: 20 correzioni o conferme, 15 domande, 3 errori analizzati.",
+        "height": 120,
+        "width": 780,
+        "color": 7
+      },
+      "id": "08d5fd9f-400f-580d-a6f2-fc0a1210b930",
+      "name": "Nota · requisiti",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        480,
+        650
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://nocodb:8080/api/v2/tables/__TBL_corpus_documenti__/records/count",
+        "options": {
+          "timeout": 120000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "id": "8ec3c611-70f7-5d39-8df3-a2dfb029d55c",
+      "name": "Conta i documenti",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        520,
+        800
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "labCredNocoDB0001",
+          "name": "NocoDB · registri"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://nocodb:8080/api/v2/tables/__TBL_correzioni_grafo__/records/count",
+        "options": {
+          "timeout": 120000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "id": "128be7c2-fb61-590d-91c8-5b86bd9ec803",
+      "name": "Conta le correzioni",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        780,
+        800
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "labCredNocoDB0001",
+          "name": "NocoDB · registri"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://nocodb:8080/api/v2/tables/__TBL_interrogazioni__/records/count",
+        "options": {
+          "timeout": 120000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "id": "bb7e5acf-4cf8-5259-af4f-45e53cec90a8",
+      "name": "Conta le domande",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1040,
+        800
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "labCredNocoDB0001",
+          "name": "NocoDB · registri"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://nocodb:8080/api/v2/tables/__TBL_verifiche__/records/count",
+        "options": {
+          "timeout": 120000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "where",
+              "value": "(esito,notblank)"
+            }
+          ]
+        }
+      },
+      "id": "42b03ac6-a452-596e-96f4-e51f5e33055c",
+      "name": "Conta le verifiche con esito",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1300,
+        800
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "labCredNocoDB0001",
+          "name": "NocoDB · registri"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://nocodb:8080/api/v2/tables/__TBL_verifiche__/records/count",
+        "options": {
+          "timeout": 120000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "where",
+              "value": "(tipo_errore,notblank)~and(tipo_errore,neq,nessuno)"
+            }
+          ]
+        }
+      },
+      "id": "4b1d90d4-132a-5d8c-ae6e-126973f875ad",
+      "name": "Conta gli errori analizzati",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1560,
+        800
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "labCredNocoDB0001",
+          "name": "NocoDB · registri"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "95022bff-210d-504c-b4fe-21f32d4cdfb4",
+              "name": "riepilogo",
+              "value": "={{ 'RIEPILOGO DEI REQUISITI DI IDONEITÀ — ' + $now.toFormat('dd/MM/yyyy HH:mm') + '\\n\\n' + 'Documenti nel registro del corpus: ' + $('Conta i documenti').first().json.count + ' (richiesti 15–40)\\n' + 'Correzioni o conferme del grafo: ' + $('Conta le correzioni').first().json.count + ' (richieste almeno 20)\\n' + 'Domande registrate: ' + $('Conta le domande').first().json.count + ' (richieste almeno 15)\\n' + 'Affermazioni con esito scritto: ' + $('Conta le verifiche con esito').first().json.count + '\\n' + 'Errori analizzati per tipo: ' + $('Conta gli errori analizzati').first().json.count + ' (richiesti almeno 3)\\n\\n' + 'Questo riepilogo conta i record: la qualità del metodo la valuta la commissione.' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "265e5236-e0bc-5ac0-a3fa-cb1e3485b4b6",
+      "name": "Riepilogo dei requisiti",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1820,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "toText",
+        "sourceProperty": "riepilogo",
+        "options": {
+          "fileName": "riepilogo_requisiti.txt"
+        }
+      },
+      "id": "1e7b25ad-a1b7-5889-9f34-8d194a53a3dc",
+      "name": "Riepilogo in un file",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        2080,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "numberInputs": 6
+      },
+      "id": "0d022009-f58b-58ed-a90c-26b783c03ebc",
+      "name": "Riunisci i file",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        2340,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "file",
+        "options": {
+          "includeBinaries": true
+        }
+      },
+      "id": "98baed20-88b8-5b6e-a8b2-ecccaae2a51a",
+      "name": "Tutti i file in un elemento",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        2600,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "compress",
+        "binaryPropertyName": "={{ Object.keys($binary).join(',') }}",
+        "outputFormat": "zip",
+        "fileName": "={{ $('PARAMETRI').first().json.nome_dossier + '-' + $now.toFormat('yyyy-MM-dd-HHmm') + '.zip' }}",
+        "binaryPropertyOutput": "data"
+      },
+      "id": "4891ad8c-4d4e-52d2-a32d-4147dc191d6a",
+      "name": "Crea l'archivio zip",
+      "type": "n8n-nodes-base.compression",
+      "typeVersion": 1.1,
+      "position": [
+        2860,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "=/dati/dossier/{{ $binary.data.fileName }}",
+        "dataPropertyName": "data",
+        "options": {}
+      },
+      "id": "91e8f742-b014-52aa-8020-03d8566240ed",
+      "name": "Salva nel dossier",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        3120,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "42b7ef2a-103d-5c9b-9662-77d14b8187a3",
+              "name": "messaggio",
+              "value": "={{ 'Dossier salvato in LaboratorioIA/dati/dossier/' + $binary.data.fileName }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "3438b862-7a6c-59b9-8421-7720379b8187",
+      "name": "Dossier pronto",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3380,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "348bab12-0d5b-5850-afcb-642e9514d10e",
+              "name": "messaggio",
+              "value": "={{ 'Il passaggio «' + $prevNode.name + '» non è riuscito. Nessun record è stato lasciato a metà. Controlla che il pannello del laboratorio sia tutto verde e riesegui il workflow. Dettaglio tecnico: ' + (typeof $json.error === 'string' ? $json.error : (($json.error && $json.error.message) || JSON.stringify($json).slice(0, 300))) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "94687361-17ab-55ae-a99a-6e2d89e14c23",
+      "name": "Spiega l'errore",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2860,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "errorMessage": "={{ $json.messaggio }}"
+      },
+      "id": "e691b532-409c-5f89-a5a8-c5723fa82514",
+      "name": "Ferma con messaggio",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        3120,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Ramo d'errore: se un passaggio non riesce, il workflow si ferma con un messaggio in italiano e non lascia record a metà. Leggi il messaggio nella lista delle esecuzioni.",
+        "height": 120,
+        "width": 520,
+        "color": 7
+      },
+      "id": "44424cc5-0dd1-5e41-ac81-af7ac03fdb7d",
+      "name": "Nota · errori",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2820,
+        250
+      ]
+    }
+  ],
+  "connections": {
+    "Avvia a mano": {
+      "main": [
+        [
+          {
+            "node": "PARAMETRI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PARAMETRI": {
+      "main": [
+        [
+          {
+            "node": "Elenco dei registri",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Scarica il grafo",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Leggi i prompt",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Scarica i workflow",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Conta i documenti",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Elenco dei registri": {
+      "main": [
+        [
+          {
+            "node": "Un registro per riga",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Un registro per riga": {
+      "main": [
+        [
+          {
+            "node": "Un registro alla volta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Un registro alla volta": {
+      "main": [
+        [
+          {
+            "node": "Riunisci i file",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Scarica il registro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scarica il registro": {
+      "main": [
+        [
+          {
+            "node": "Righe del registro",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Spiega l'errore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Righe del registro": {
+      "main": [
+        [
+          {
+            "node": "Registro in CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registro in CSV": {
+      "main": [
+        [
+          {
+            "node": "Un registro alla volta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scarica il grafo": {
+      "main": [
+        [
+          {
+            "node": "Nodi del grafo",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Archi del grafo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Spiega l'errore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nodi del grafo": {
+      "main": [
+        [
+          {
+            "node": "Nodi in CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Archi del grafo": {
+      "main": [
+        [
+          {
+            "node": "Archi in CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nodi in CSV": {
+      "main": [
+        [
+          {
+            "node": "Riunisci i file",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Archi in CSV": {
+      "main": [
+        [
+          {
+            "node": "Riunisci i file",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Leggi i prompt": {
+      "main": [
+        [
+          {
+            "node": "Riunisci i file",
+            "type": "main",
+            "index": 3
+          }
+        ],
+        [
+          {
+            "node": "Spiega l'errore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scarica i workflow": {
+      "main": [
+        [
+          {
+            "node": "Un workflow per riga",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Un workflow per riga": {
+      "main": [
+        [
+          {
+            "node": "Workflow in JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow in JSON": {
+      "main": [
+        [
+          {
+            "node": "Riunisci i file",
+            "type": "main",
+            "index": 4
+          }
+        ]
+      ]
+    },
+    "Conta i documenti": {
+      "main": [
+        [
+          {
+            "node": "Conta le correzioni",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Spiega l'errore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conta le correzioni": {
+      "main": [
+        [
+          {
+            "node": "Conta le domande",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Spiega l'errore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conta le domande": {
+      "main": [
+        [
+          {
+            "node": "Conta le verifiche con esito",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Spiega l'errore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conta le verifiche con esito": {
+      "main": [
+        [
+          {
+            "node": "Conta gli errori analizzati",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Spiega l'errore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conta gli errori analizzati": {
+      "main": [
+        [
+          {
+            "node": "Riepilogo dei requisiti",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Spiega l'errore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Riepilogo dei requisiti": {
+      "main": [
+        [
+          {
+            "node": "Riepilogo in un file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Riepilogo in un file": {
+      "main": [
+        [
+          {
+            "node": "Riunisci i file",
+            "type": "main",
+            "index": 5
+          }
+        ]
+      ]
+    },
+    "Riunisci i file": {
+      "main": [
+        [
+          {
+            "node": "Tutti i file in un elemento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tutti i file in un elemento": {
+      "main": [
+        [
+          {
+            "node": "Crea l'archivio zip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crea l'archivio zip": {
+      "main": [
+        [
+          {
+            "node": "Salva nel dossier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salva nel dossier": {
+      "main": [
+        [
+          {
+            "node": "Dossier pronto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Spiega l'errore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Spiega l'errore": {
+      "main": [
+        [
+          {
+            "node": "Ferma con messaggio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "pinData": {},
+  "tags": [],
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "laboratorio": "kit 0.1.0"
+  }
+}

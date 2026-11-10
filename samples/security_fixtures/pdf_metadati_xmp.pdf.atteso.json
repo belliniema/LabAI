@@ -1,0 +1,12 @@
+{
+  "file": "pdf_metadati_xmp.pdf",
+  "descrizione": "PDF con l'istruzione-esca nei metadati XMP (dc:description)",
+  "richiede_tika": false,
+  "segnalazioni_attese": [
+    {
+      "tipo": "metadati",
+      "contiene": "CANARINO-42"
+    }
+  ],
+  "nota": "Fixture didattica del Laboratorio di IA per la ricerca storica: testo inventato, nessuna persona reale."
+}

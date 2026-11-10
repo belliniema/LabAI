@@ -1,0 +1,788 @@
+{
+  "id": "labWF02web000000",
+  "name": "WF02 · Ingestione dal web",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Che cosa fa\nScarica le pagine dei record del registro con stato `da_acquisire` e un URL. Scarta i domini che non sono in `allowlist_domini.txt`, rispetta robots.txt e aspetta tra una richiesta e l'altra. Salva testo e HTML, registra data e impronta e porta lo stato ad `acquisito`.\n\n## Input\nRecord che hai creato in `corpus_documenti` con `stato` = da_acquisire e l'URL in `url_o_percorso` (anche quelli preparati da WF03).\n\n## Output\n`testi/<doc_id>.txt`, `testi/<doc_id>.html`, record aggiornato.\n\n## Che cosa puoi modificare\nSolo PARAMETRI: `pausa_secondi` tra una pagina e l'altra (minimo 3) e `massimo_pagine`.\n\n## Rischi e limiti\nPagine dinamiche (JavaScript) possono risultare vuote. Rispetta i termini d'uso dei siti. Un dominio nuovo va chiesto al docente.",
+        "height": 420,
+        "width": 760,
+        "color": 4
+      },
+      "id": "2dff2828-dc23-5b5e-b558-ee19df10f4d1",
+      "name": "Nota del workflow",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -460
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "9fd353a6-657b-52b6-9af1-51a87f07f316",
+      "name": "Avvia a mano",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3937a443-76dd-5c4a-9689-7b38dbc871bd",
+              "name": "pausa_secondi",
+              "value": 5,
+              "type": "number"
+            },
+            {
+              "id": "546b76c4-f72b-5b40-8598-ad86d494dc4e",
+              "name": "massimo_pagine",
+              "value": 20,
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d918ba6f-c4ea-5ab9-8e70-1c7f375c67dc",
+      "name": "PARAMETRI",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        260,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://nocodb:8080/api/v2/tables/__TBL_corpus_documenti__/records",
+        "options": {
+          "timeout": 120000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "limit",
+              "value": "={{ $json.massimo_pagine }}"
+            },
+            {
+              "name": "where",
+              "value": "(stato,eq,da_acquisire)~and(url_o_percorso,like,http%)"
+            },
+            {
+              "name": "sort",
+              "value": "id"
+            }
+          ]
+        }
+      },
+      "id": "fd225a59-1ea0-5fb8-9aa0-913eb0b78a83",
+      "name": "Record da acquisire",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        520,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "labCredNocoDB0001",
+          "name": "NocoDB · registri"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "list",
+        "options": {}
+      },
+      "id": "7cb20040-a0ca-57de-8bea-47280747c6b2",
+      "name": "Un record per riga",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        780,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "dedef32f-c106-55b0-8a2c-bfdc06167a55",
+      "name": "Una pagina alla volta",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1040,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Il servizio interno controlla allowlist e robots.txt prima di scaricare. Nessuna pagina fuori elenco viene richiesta.",
+        "height": 120,
+        "width": 780,
+        "color": 7
+      },
+      "id": "77118290-3666-5c79-8387-0fbdb6be64e7",
+      "name": "Nota · raccolta etica",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1260,
+        50
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://controlli:8099/web/scarica",
+        "options": {
+          "timeout": 180000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ url: $json.url_o_percorso }) }}"
+      },
+      "id": "3edebb38-262d-5314-bff3-e7ab7c0e8594",
+      "name": "Verifica e scarica la pagina",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1300,
+        200
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "f9df0c38-4cb7-59cd-9bc6-70cf9fcd998c",
+              "leftValue": "={{ $json.scaricato }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "0fa82680-3911-5ab7-8844-3f279952261a",
+      "name": "Pagina scaricata?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1560,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a9c9a83a-1f78-579b-a05c-0de2c76db9d5",
+              "name": "messaggio",
+              "value": "={{ 'Non scaricata: ' + $json.url + ' — ' + $json.motivo }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a6966976-6808-52e3-aef2-b44bf5ee8f45",
+      "name": "Pagina non scaricata",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1820,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://nocodb:8080/api/v2/tables/__TBL_corpus_documenti__/records",
+        "options": {
+          "timeout": 120000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "limit",
+              "value": "1"
+            },
+            {
+              "name": "where",
+              "value": "(doc_id,notblank)"
+            },
+            {
+              "name": "sort",
+              "value": "-doc_id"
+            },
+            {
+              "name": "fields",
+              "value": "doc_id"
+            }
+          ]
+        }
+      },
+      "id": "c92ed521-46c0-5c8e-ade3-ac9637156878",
+      "name": "Trova l'ultimo doc_id",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1820,
+        200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "labCredNocoDB0001",
+          "name": "NocoDB · registri"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "922b881d-f9b5-518e-9fbb-74b1c2083d3c",
+              "name": "doc_id",
+              "value": "={{ $('Una pagina alla volta').item.json.doc_id || 'D' + String((($json.list && $json.list[0] && parseInt(String($json.list[0].doc_id).slice(1), 10)) || 0) + 1).padStart(4, '0') }}",
+              "type": "string"
+            },
+            {
+              "id": "02719c4c-d0c8-58c5-84ef-8faa6e0ab0d7",
+              "name": "testo",
+              "value": "={{ $('Verifica e scarica la pagina').item.json.testo }}",
+              "type": "string"
+            },
+            {
+              "id": "52ca2d18-06a2-5358-aa03-5d47002ae452",
+              "name": "html",
+              "value": "={{ $('Verifica e scarica la pagina').item.json.html }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8f54c07e-1995-5431-9d88-7b037d5702d4",
+      "name": "Prepara i dati",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2080,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "action": "hash",
+        "type": "SHA256",
+        "value": "={{ $json.html || $json.testo }}",
+        "dataPropertyName": "hash_sha256",
+        "encoding": "hex"
+      },
+      "id": "e20f4d83-91f7-58cd-8bbf-c9b0b6aab6e3",
+      "name": "Calcola l'impronta",
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 2,
+      "position": [
+        2340,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "toText",
+        "sourceProperty": "testo",
+        "options": {
+          "fileName": "={{ $json.doc_id }}.txt"
+        }
+      },
+      "id": "f11bc306-5e1c-55d3-b6ac-19819f28ad87",
+      "name": "Testo in un file",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        2600,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "=/dati/testi/{{ $('Prepara i dati').item.json.doc_id }}.txt",
+        "dataPropertyName": "data",
+        "options": {}
+      },
+      "id": "7f1881d9-470d-55bb-8325-dbb9a603d1ba",
+      "name": "Salva il testo",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        2860,
+        200
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "409ea8bc-6056-5ff8-9a5d-328bdfb3cb0d",
+              "name": "html",
+              "value": "={{ $('Prepara i dati').item.json.html }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7947987f-abd5-584b-a1ee-a9c89aa4dca3",
+      "name": "Riprendi l'HTML",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3120,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "toText",
+        "sourceProperty": "html",
+        "options": {
+          "fileName": "={{ $('Prepara i dati').item.json.doc_id }}.html"
+        }
+      },
+      "id": "012f8406-0666-5ac9-b5f3-cd8700868b03",
+      "name": "HTML in un file",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        3120,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "=/dati/testi/{{ $('Prepara i dati').item.json.doc_id }}.html",
+        "dataPropertyName": "data",
+        "options": {}
+      },
+      "id": "d9fa621a-6068-5e75-99aa-fe9d99eb7aa6",
+      "name": "Salva l'HTML",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        3380,
+        200
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "http://nocodb:8080/api/v2/tables/__TBL_corpus_documenti__/records",
+        "options": {
+          "timeout": 120000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ id: $('Una pagina alla volta').item.json.id, doc_id: $('Prepara i dati').item.json.doc_id, stato: 'acquisito', data_acquisizione: $now.toFormat('yyyy-MM-dd'), hash_sha256: $('Calcola l\\'impronta').item.json.hash_sha256, provenienza: $('Una pagina alla volta').item.json.provenienza || 'web', titolo: $('Una pagina alla volta').item.json.titolo || $('Verifica e scarica la pagina').item.json.titolo, qualita_ocr: 'non_applicabile' }) }}"
+      },
+      "id": "63c7b9d6-c9a3-5982-9464-fa83a7f552e6",
+      "name": "Aggiorna il record",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3640,
+        200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "labCredNocoDB0001",
+          "name": "NocoDB · registri"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "amount": "={{ Math.max(3, $('PARAMETRI').first().json.pausa_secondi) }}",
+        "unit": "seconds"
+      },
+      "id": "bd39a9c9-ad90-5a00-bc96-a2044f82a5c4",
+      "name": "Pausa di cortesia",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3900,
+        200
+      ],
+      "webhookId": "59c9ec57-c90e-57c0-a961-7850fdf1c6a4"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1476b536-bac6-5f66-940c-a7d829e780e0",
+              "name": "messaggio",
+              "value": "={{ 'Il passaggio «' + $prevNode.name + '» non è riuscito. Nessun record è stato lasciato a metà. Controlla che il pannello del laboratorio sia tutto verde e riesegui il workflow. Dettaglio tecnico: ' + (typeof $json.error === 'string' ? $json.error : (($json.error && $json.error.message) || JSON.stringify($json).slice(0, 300))) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "129b596d-d841-5bcc-9363-4be104d81de8",
+      "name": "Spiega l'errore",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2340,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "errorMessage": "={{ $json.messaggio }}"
+      },
+      "id": "bf20eb27-340a-5c72-832e-1f0995869be9",
+      "name": "Ferma con messaggio",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        2600,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Ramo d'errore: se un passaggio non riesce, il workflow si ferma con un messaggio in italiano e non lascia record a metà. Leggi il messaggio nella lista delle esecuzioni.",
+        "height": 120,
+        "width": 520,
+        "color": 7
+      },
+      "id": "0f694c4b-4f0a-5cdb-a0bb-7526950b9126",
+      "name": "Nota · errori",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2300,
+        650
+      ]
+    }
+  ],
+  "connections": {
+    "Avvia a mano": {
+      "main": [
+        [
+          {
+            "node": "PARAMETRI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PARAMETRI": {
+      "main": [
+        [
+          {
+            "node": "Record da acquisire",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record da acquisire": {
+      "main": [
+        [
+          {
+            "node": "Un record per riga",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Spiega l'errore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Un record per riga": {
+      "main": [
+        [
+          {
+            "node": "Una pagina alla volta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Una pagina alla volta": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Verifica e scarica la pagina",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verifica e scarica la pagina": {
+      "main": [
+        [
+          {
+            "node": "Pagina scaricata?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Spiega l'errore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pagina scaricata?": {
+      "main": [
+        [
+          {
+            "node": "Trova l'ultimo doc_id",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Pagina non scaricata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pagina non scaricata": {
+      "main": [
+        [
+          {
+            "node": "Una pagina alla volta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trova l'ultimo doc_id": {
+      "main": [
+        [
+          {
+            "node": "Prepara i dati",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Spiega l'errore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepara i dati": {
+      "main": [
+        [
+          {
+            "node": "Calcola l'impronta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcola l'impronta": {
+      "main": [
+        [
+          {
+            "node": "Testo in un file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Testo in un file": {
+      "main": [
+        [
+          {
+            "node": "Salva il testo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salva il testo": {
+      "main": [
+        [
+          {
+            "node": "Riprendi l'HTML",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Spiega l'errore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Riprendi l'HTML": {
+      "main": [
+        [
+          {
+            "node": "HTML in un file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML in un file": {
+      "main": [
+        [
+          {
+            "node": "Salva l'HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salva l'HTML": {
+      "main": [
+        [
+          {
+            "node": "Aggiorna il record",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Spiega l'errore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggiorna il record": {
+      "main": [
+        [
+          {
+            "node": "Pausa di cortesia",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Spiega l'errore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pausa di cortesia": {
+      "main": [
+        [
+          {
+            "node": "Una pagina alla volta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Spiega l'errore": {
+      "main": [
+        [
+          {
+            "node": "Ferma con messaggio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "pinData": {},
+  "tags": [],
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "laboratorio": "kit 0.1.0"
+  }
+}

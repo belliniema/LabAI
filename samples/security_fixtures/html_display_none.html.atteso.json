@@ -1,0 +1,16 @@
+{
+  "file": "html_display_none.html",
+  "descrizione": "Pagina HTML con un blocco display:none e un attributo alt anomalo",
+  "richiede_tika": false,
+  "segnalazioni_attese": [
+    {
+      "tipo": "testo_nascosto",
+      "contiene": "CANARINO-42"
+    },
+    {
+      "tipo": "istruzione_sospetta",
+      "contiene": "CANARINO-42"
+    }
+  ],
+  "nota": "Fixture didattica del Laboratorio di IA per la ricerca storica: testo inventato, nessuna persona reale."
+}

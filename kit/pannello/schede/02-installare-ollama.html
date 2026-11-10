@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>02 · Installare Ollama</title>
+<style>
+:root { --sfondo:#f6f4ef; --carta:#fff; --testo:#1f2328; --tenue:#5b6168; --bordo:#dcd8cf; --accento:#7a2e1d; --accento-chiaro:#f3e3dc; }
+@media (prefers-color-scheme: dark) { :root { --sfondo:#16181b; --carta:#1f2226; --testo:#e8e6e1; --tenue:#a3a8ae; --bordo:#33373d; --accento:#e5a48f; --accento-chiaro:#3a2620; } }
+body { margin:0; background:var(--sfondo); color:var(--testo); font:17px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+main { max-width:820px; margin:0 auto; padding:24px 16px 64px; }
+h1 { font-family:Georgia,serif; font-weight:600; } h2 { margin-top:2em; }
+a { color:var(--accento); } code { background:var(--accento-chiaro); padding:1px 5px; border-radius:4px; font-size:.9em; }
+table { border-collapse:collapse; width:100%; margin:1em 0; background:var(--carta); display:block; overflow-x:auto; }
+th,td { border:1px solid var(--bordo); padding:6px 10px; text-align:left; vertical-align:top; }
+blockquote { margin:1em 0; padding:10px 16px; border-left:4px solid var(--accento); background:var(--accento-chiaro); border-radius:6px; }
+.schermata { border:2px dashed var(--bordo); color:var(--tenue); padding:18px; border-radius:8px; text-align:center; font-size:.9em; background:var(--carta); }
+nav { font-size:.9em; }
+</style></head><body><main>
+<nav><a href="../index.html">← Pannello</a> · <a href="index.html">Tutte le schede</a></nav>
+<h1>02 · Installare Ollama</h1>
+<p><strong>Obiettivo.</strong> Installare Ollama, il programma che fa girare i modelli linguistici sul tuo computer. Un <em>modello linguistico</em> è un programma che, dato un testo, prevede le parole successive: è il "motore" che estrae entità e scrive risposte.</p>
+<ol><li>Scarica Ollama dal sito ufficiale (ollama.com) per il tuo sistema.<div class="schermata" role="img" aria-label="SCHERMATA: pagina di download">📷 SCHERMATA: pagina di download</div></li><li><strong>Windows:</strong> fai doppio clic sul file e segui l'installazione. <strong>Mac:</strong> apri il file, trascina Ollama in Applicazioni e aprilo.</li><li>Controlla che vicino all'orologio (Windows) o nella barra in alto (Mac) compaia l'icona del <strong>lama</strong>.<div class="schermata" role="img" aria-label="SCHERMATA: icona del lama nella barra">📷 SCHERMATA: icona del lama nella barra</div></li><li>Non devi scaricare modelli a mano: lo fa <strong>Avvia laboratorio</strong>, scegliendo quelli adatti alla memoria del tuo computer.</li></ol>
+<p><strong>Perché Ollama non è dentro Docker?</strong> Sul Mac, Docker non può usare la scheda grafica del chip Apple: un modello dentro Docker sarebbe molto più lento. Come applicazione normale, Ollama la usa.</p>
+<h2>Errori comuni</h2>
+<table><thead><tr><th>Problema</th><th>Che cosa fare</th></tr></thead><tbody><tr><td>Il lama non compare</td><td>Apri Ollama da Applicazioni o dal menu Start.</td></tr><tr><td><em>Ollama non è avviato</em> nel launcher</td><td>Apri Ollama, attendi 10 secondi, rifai doppio clic su Avvia laboratorio.</td></tr><tr><td>Disco quasi pieno</td><td>I modelli pesano 3–5 GB: libera spazio prima del primo avvio.</td></tr></tbody></table>
+<blockquote><strong>Domanda di riflessione.</strong> Il modello gira sul tuo portatile e non vede internet. Da dove viene allora quello che "sa"? E che cosa non può sapere?</blockquote>
+</main></body></html>

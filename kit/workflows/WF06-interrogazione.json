@@ -1,0 +1,913 @@
+{
+  "id": "labWF06interroga",
+  "name": "WF06 · Interrogazione",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Che cosa fa\nPone una domanda al grafo (personale o demo) nella modalità scelta. La risposta segue il prompt `risposta_storica` (solo dal contesto, ogni affermazione con [doc_id]). Salva in `interrogazioni` risposta, contesto recuperato, riferimenti, modello, digest e versione del prompt.\n\n## Input\nIl modulo che si apre con «Execute workflow»: domanda, tipologia, grafo, modalità.\n\n## Output\nLa risposta con i riferimenti nella pagina del modulo; un record in `interrogazioni`; un evento in `uso_ia`.\n\n## Che cosa puoi modificare\nSolo PARAMETRI: `file_prompt` (se il docente fornisce una nuova versione) e `top_k`.\n\n## Rischi e limiti\nLa risposta è una **proposta da verificare** con WF07: il modello può citare un doc_id sbagliato o affermare ciò che il contesto non dice. Il grafo demo è in sola lettura.",
+        "height": 420,
+        "width": 760,
+        "color": 4
+      },
+      "id": "fdc4efd1-2110-523f-a83a-170ceea261fd",
+      "name": "Nota del workflow",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -460
+      ]
+    },
+    {
+      "parameters": {
+        "formTitle": "Interroga il grafo",
+        "formDescription": "La risposta va sempre verificata (WF07).",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Domanda",
+              "fieldType": "textarea",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Tipologia",
+              "fieldType": "dropdown",
+              "requiredField": true,
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "fattuale"
+                  },
+                  {
+                    "option": "relazionale"
+                  },
+                  {
+                    "option": "comparativa"
+                  },
+                  {
+                    "option": "interpretativa"
+                  }
+                ]
+              }
+            },
+            {
+              "fieldLabel": "Grafo",
+              "fieldType": "dropdown",
+              "requiredField": true,
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "personale"
+                  },
+                  {
+                    "option": "demo"
+                  }
+                ]
+              }
+            },
+            {
+              "fieldLabel": "Modalita",
+              "fieldType": "dropdown",
+              "requiredField": true,
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "hybrid"
+                  },
+                  {
+                    "option": "local"
+                  },
+                  {
+                    "option": "global"
+                  },
+                  {
+                    "option": "naive"
+                  },
+                  {
+                    "option": "mix"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "dd707bd3-9181-5c4a-9699-5b511d1daded",
+      "name": "Modulo della domanda",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "8b242894-d00c-53d9-83c8-7d8aac64e81e"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a999e735-d3de-570e-902e-dfd4fb0a026e",
+              "name": "file_prompt",
+              "value": "risposta_storica.md",
+              "type": "string"
+            },
+            {
+              "id": "8e5f7f97-db15-51fb-8ee5-729c79bcad0b",
+              "name": "top_k",
+              "value": 20,
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a34866fd-da1e-5b06-9824-fec68da4a76f",
+      "name": "PARAMETRI",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        260,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "fileSelector": "=/kit-prompts/{{ $json.file_prompt }}",
+        "options": {}
+      },
+      "id": "598adb68-f3ea-511b-b3fa-2151089a255d",
+      "name": "Leggi il prompt",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        520,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "destinationKey": "testo",
+        "options": {}
+      },
+      "id": "52c28ddb-11f8-590f-a581-9c6a063e31c4",
+      "name": "Testo del prompt",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        780,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8e070ae9-25f4-5313-a7a7-52b22ea05658",
+              "name": "prompt_id",
+              "value": "={{ ($json.testo.match(/^id:\\s*(\\S+)/m) || [])[1] }}",
+              "type": "string"
+            },
+            {
+              "id": "08880ef4-8f16-5530-9b63-fbf6d3f0b5a2",
+              "name": "prompt_versione",
+              "value": "={{ ($json.testo.match(/^versione:\\s*(\\S+)/m) || [])[1] }}",
+              "type": "string"
+            },
+            {
+              "id": "7f953ab4-22f0-58ac-8bf4-4260858b6bfe",
+              "name": "prompt_testo",
+              "value": "={{ $json.testo.split(/^---\\s*$/m).slice(2).join('---').trim() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "14b9dffa-f532-5f9d-9f10-846b0cb7c51e",
+      "name": "Prompt pronto",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1040,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "32615ba1-f00a-5093-a3f1-a88124de2066",
+              "leftValue": "={{ $('Modulo della domanda').first().json.Grafo }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "demo"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "fb4b20b3-0415-58ef-a597-aa104a0a27d8",
+      "name": "Grafo demo?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1300,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://lightrag-demo:9621/query",
+        "options": {
+          "timeout": 900000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ query: $('Modulo della domanda').first().json.Domanda, mode: $('Modulo della domanda').first().json.Modalita, top_k: $('PARAMETRI').first().json.top_k, include_references: true, include_chunk_content: true, user_prompt: $json.prompt_testo }) }}"
+      },
+      "id": "290b68fd-7bbe-5ac5-b02a-8a0ab4dd3461",
+      "name": "Chiedi al grafo demo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1560,
+        -200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "labCredLightRAGDm",
+          "name": "LightRAG · grafo demo"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://lightrag:9621/query",
+        "options": {
+          "timeout": 900000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ query: $('Modulo della domanda').first().json.Domanda, mode: $('Modulo della domanda').first().json.Modalita, top_k: $('PARAMETRI').first().json.top_k, include_references: true, include_chunk_content: true, user_prompt: $json.prompt_testo }) }}"
+      },
+      "id": "39ca97ce-d0a3-582e-bc5a-74755f383823",
+      "name": "Chiedi al grafo personale",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1560,
+        200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "labCredLightRAG01",
+          "name": "LightRAG · grafo personale"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "content": "LightRAG restituisce risposta e riferimenti (con il testo dei passi usati) in una sola chiamata (ADR-005). I doc_id si ricavano dai nomi dei file `<doc_id>.txt`.",
+        "height": 120,
+        "width": 780,
+        "color": 7
+      },
+      "id": "8ba01052-7346-5e05-920e-a563b66c834e",
+      "name": "Nota · riferimenti",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1780,
+        -350
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ec86e7bd-ab3e-5cb7-b9df-a47e87d83487",
+              "name": "q_id",
+              "value": "={{ 'Q' + $now.toFormat('yyMMddHHmmss') }}",
+              "type": "string"
+            },
+            {
+              "id": "c6c5dee9-94e4-56f4-9ae0-1103d4f97768",
+              "name": "domanda",
+              "value": "={{ $('Modulo della domanda').first().json.Domanda }}",
+              "type": "string"
+            },
+            {
+              "id": "7eb9e033-54c3-5ef0-b3df-d0a84a2f9803",
+              "name": "tipologia",
+              "value": "={{ $('Modulo della domanda').first().json.Tipologia }}",
+              "type": "string"
+            },
+            {
+              "id": "e9593768-3354-5884-a34b-31e11be727ff",
+              "name": "grafo",
+              "value": "={{ $('Modulo della domanda').first().json.Grafo }}",
+              "type": "string"
+            },
+            {
+              "id": "0c5c5500-951c-5682-8648-97d1141ef6f0",
+              "name": "modalita",
+              "value": "={{ $('Modulo della domanda').first().json.Modalita }}",
+              "type": "string"
+            },
+            {
+              "id": "90343d94-d02d-5f2d-a04f-1b83dbbff02f",
+              "name": "modello_llm",
+              "value": "lab-risposta",
+              "type": "string"
+            },
+            {
+              "id": "69d2a2f0-b8c9-52c8-aa80-4e00494fc206",
+              "name": "modello_embedding",
+              "value": "embeddinggemma:300m",
+              "type": "string"
+            },
+            {
+              "id": "6a6eac90-7fed-58a4-be96-173268345294",
+              "name": "prompt_id",
+              "value": "={{ $('Prompt pronto').first().json.prompt_id }}",
+              "type": "string"
+            },
+            {
+              "id": "843d469c-5f8b-5a5b-91f3-d418722a489b",
+              "name": "prompt_versione",
+              "value": "={{ $('Prompt pronto').first().json.prompt_versione }}",
+              "type": "string"
+            },
+            {
+              "id": "99307db7-ea26-5bc2-b2b3-b7795a1a0aa5",
+              "name": "risposta",
+              "value": "={{ $json.response }}",
+              "type": "string"
+            },
+            {
+              "id": "eb09fe82-c92a-5d55-b90a-3932ac9ad8bb",
+              "name": "riferimenti_doc_id",
+              "value": "={{ Array.from(new Set(((($json.references || []).map(r => r.file_path).join(' ') + ' ' + $json.response).match(/D\\d{4}/g) || []))).sort().join(', ') }}",
+              "type": "string"
+            },
+            {
+              "id": "60ff5afa-20e5-5fb3-b82a-d38ba905ea43",
+              "name": "contesto_recuperato",
+              "value": "={{ ($json.references || []).map(r => '[' + r.reference_id + '] ' + r.file_path + '\\n' + (r.content || []).join('\\n[…]\\n')).join('\\n\\n').slice(0, 60000) }}",
+              "type": "string"
+            },
+            {
+              "id": "2a84fddf-a58b-5869-86e4-3e05e9994403",
+              "name": "n8n_execution_id",
+              "value": "={{ $execution.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "daa78f43-23d4-5139-9a04-c695af45ba3a",
+      "name": "Prepara il record",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1820,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/show",
+        "options": {
+          "timeout": 120000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'lab-risposta' }) }}"
+      },
+      "id": "c5fb87ba-ba02-566c-abe3-4e5572d6b3af",
+      "name": "Informazioni sul modello",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2080,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://host.docker.internal:11434/api/tags",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "16c9cca1-3e59-5378-9fe8-5191564c4d6c",
+      "name": "Digest dei modelli",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2340,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "9d5e83b6-0105-59e2-850a-a5f11091eaf9",
+              "name": "record",
+              "value": "={{ Object.assign({}, $('Prepara il record').item.json, { digest_modello: (($json.models || []).find(m => m.name === 'lab-risposta:latest') || {}).digest || 'non disponibile', temperatura: parseFloat((String($('Informazioni sul modello').item.json.parameters || '').match(/temperature\\s+([\\d.]+)/) || [])[1]) || null }) }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7ff91a91-fb91-5d91-be7d-1c4ebb9fa4be",
+      "name": "Completa il record",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2600,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://nocodb:8080/api/v2/tables/__TBL_interrogazioni__/records",
+        "options": {
+          "timeout": 120000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.record) }}"
+      },
+      "id": "3d664fa8-3e05-5a95-9389-5237aa8ca7f9",
+      "name": "Salva in interrogazioni",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2860,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "labCredNocoDB0001",
+          "name": "NocoDB · registri"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "labWF09registro0",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow": "WF06 · Interrogazione",
+            "nodo": "Chiedi al grafo",
+            "modello": "lab-risposta",
+            "parametri": "={{ JSON.stringify({ grafo: $('Completa il record').item.json.record.grafo, modalita: $('Completa il record').item.json.record.modalita, top_k: $('PARAMETRI').first().json.top_k, temperatura: $('Completa il record').item.json.record.temperatura, digest: $('Completa il record').item.json.record.digest_modello }) }}",
+            "prompt_id": "={{ $('Prompt pronto').first().json.prompt_id }}",
+            "prompt_versione": "={{ $('Prompt pronto').first().json.prompt_versione }}",
+            "doc_id_coinvolti": "={{ $('Completa il record').item.json.record.riferimenti_doc_id }}",
+            "n8n_execution_id": "={{ $execution.id }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "workflow",
+              "displayName": "workflow",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "nodo",
+              "displayName": "nodo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "modello",
+              "displayName": "modello",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "parametri",
+              "displayName": "parametri",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "prompt_id",
+              "displayName": "prompt_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "prompt_versione",
+              "displayName": "prompt_versione",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "doc_id_coinvolti",
+              "displayName": "doc_id_coinvolti",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "n8n_execution_id",
+              "displayName": "n8n_execution_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "b340fa82-3c6d-5143-8a33-6a33b35152a1",
+      "name": "Registra uso IA",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        3120,
+        0
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "completion",
+        "respondWith": "showText",
+        "responseText": "={{ 'Domanda ' + $('Completa il record').item.json.record.q_id + ' (' + $('Completa il record').item.json.record.grafo + ', ' + $('Completa il record').item.json.record.modalita + ')\\n\\n' + $('Completa il record').item.json.record.risposta + '\\n\\nDOCUMENTI DEL CONTESTO: ' + ($('Completa il record').item.json.record.riferimenti_doc_id || 'nessuno') + '\\n\\nQuesta risposta è una proposta: verificala con WF07 usando il codice ' + $('Completa il record').item.json.record.q_id + '.' }}",
+        "options": {}
+      },
+      "id": "46c375af-de61-5882-be4c-1acec5e26b8f",
+      "name": "Mostra la risposta",
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 1,
+      "position": [
+        3380,
+        0
+      ],
+      "webhookId": "86b400a7-4a2b-5036-8958-ddb9579303e1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ea1c6edd-9fc6-5c15-9e5a-8d47494cf097",
+              "name": "messaggio",
+              "value": "={{ 'Il passaggio «' + $prevNode.name + '» non è riuscito. Nessun record è stato lasciato a metà. Controlla che il pannello del laboratorio sia tutto verde e riesegui il workflow. Dettaglio tecnico: ' + (typeof $json.error === 'string' ? $json.error : (($json.error && $json.error.message) || JSON.stringify($json).slice(0, 300))) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "36fb6b92-407d-5e88-b537-3dc9329abc31",
+      "name": "Spiega l'errore",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2080,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "errorMessage": "={{ $json.messaggio }}"
+      },
+      "id": "26cf5590-8c8c-5f9f-9cd3-69e4338208b9",
+      "name": "Ferma con messaggio",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        2340,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Ramo d'errore: se un passaggio non riesce, il workflow si ferma con un messaggio in italiano e non lascia record a metà. Leggi il messaggio nella lista delle esecuzioni.",
+        "height": 120,
+        "width": 520,
+        "color": 7
+      },
+      "id": "353f0129-e833-58b8-9f66-f542eaa3e250",
+      "name": "Nota · errori",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2040,
+        450
+      ]
+    }
+  ],
+  "connections": {
+    "Leggi il prompt": {
+      "main": [
+        [
+          {
+            "node": "Testo del prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Spiega l'errore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Testo del prompt": {
+      "main": [
+        [
+          {
+            "node": "Prompt pronto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Modulo della domanda": {
+      "main": [
+        [
+          {
+            "node": "PARAMETRI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PARAMETRI": {
+      "main": [
+        [
+          {
+            "node": "Leggi il prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prompt pronto": {
+      "main": [
+        [
+          {
+            "node": "Grafo demo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Grafo demo?": {
+      "main": [
+        [
+          {
+            "node": "Chiedi al grafo demo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Chiedi al grafo personale",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chiedi al grafo demo": {
+      "main": [
+        [
+          {
+            "node": "Prepara il record",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Spiega l'errore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chiedi al grafo personale": {
+      "main": [
+        [
+          {
+            "node": "Prepara il record",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Spiega l'errore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepara il record": {
+      "main": [
+        [
+          {
+            "node": "Informazioni sul modello",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Informazioni sul modello": {
+      "main": [
+        [
+          {
+            "node": "Digest dei modelli",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Spiega l'errore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Digest dei modelli": {
+      "main": [
+        [
+          {
+            "node": "Completa il record",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Spiega l'errore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Completa il record": {
+      "main": [
+        [
+          {
+            "node": "Salva in interrogazioni",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salva in interrogazioni": {
+      "main": [
+        [
+          {
+            "node": "Registra uso IA",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Spiega l'errore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registra uso IA": {
+      "main": [
+        [
+          {
+            "node": "Mostra la risposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Spiega l'errore": {
+      "main": [
+        [
+          {
+            "node": "Ferma con messaggio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "pinData": {},
+  "tags": [],
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "laboratorio": "kit 0.1.0"
+  }
+}

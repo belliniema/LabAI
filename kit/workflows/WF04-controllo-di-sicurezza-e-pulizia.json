@@ -1,0 +1,686 @@
+{
+  "id": "labWF04sicurezza",
+  "name": "WF04 · Controllo di sicurezza e pulizia",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Che cosa fa\nControlla i documenti `acquisito` alla ricerca di testo nascosto, caratteri invisibili, istruzioni rivolte a un modello, metadati sospetti, URL fuori allowlist (CLAUDE.md §10.2). I documenti sospetti passano a `in_quarantena` con una segnalazione per ogni problema. Normalizza spazi e a-capo del testo senza cambiarne il contenuto.\n\n## Input\nRecord con stato `acquisito`, i file in `testi/` e gli originali in `inbox/`.\n\n## Output\nRighe in `segnalazioni_sicurezza` (decisione `da_decidere`), stato `in_quarantena` per i sospetti.\n\n## Che cosa puoi modificare\nSolo PARAMETRI: `massimo_documenti`.\n\n## Rischi e limiti\nI controlli **segnalano e non correggono**: decidi tu in NocoDB (escludere, ripulire, mantenere con nota) e porta tu i documenti puliti ad `approvato`. Nessun controllo è perfetto: le immagini possono contenere perturbazioni che l'OCR non vede.",
+        "height": 420,
+        "width": 760,
+        "color": 4
+      },
+      "id": "0d3a54c4-6706-5276-8d6c-f9d0d4d50689",
+      "name": "Nota del workflow",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -460
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "cf571985-fa44-5958-9250-5e1b6b74fadb",
+      "name": "Avvia a mano",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "75f5f294-24c1-59d4-84ef-b2313fb2d2b4",
+              "name": "massimo_documenti",
+              "value": 50,
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "1298c702-855a-5f9d-ad38-9e627d7dfe74",
+      "name": "PARAMETRI",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        260,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://nocodb:8080/api/v2/tables/__TBL_corpus_documenti__/records",
+        "options": {
+          "timeout": 120000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "limit",
+              "value": "={{ $json.massimo_documenti }}"
+            },
+            {
+              "name": "where",
+              "value": "(stato,eq,acquisito)"
+            },
+            {
+              "name": "sort",
+              "value": "doc_id"
+            }
+          ]
+        }
+      },
+      "id": "78c7b8ee-bdf3-5cc4-a2c1-7fe40ece9921",
+      "name": "Documenti da controllare",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        520,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "labCredNocoDB0001",
+          "name": "NocoDB · registri"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "list",
+        "options": {}
+      },
+      "id": "9e1a4013-8488-5761-bbb3-6125cde6fb98",
+      "name": "Un record per riga",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        780,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "fd5a6b65-5593-55f1-b7f1-b37476a5dc43",
+      "name": "Un documento alla volta",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1040,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Il servizio interno «controlli» esamina testo, originale e metadati. Gli estratti sospetti sono resi inerti e non vengono mai inviati a un modello.",
+        "height": 120,
+        "width": 780,
+        "color": 7
+      },
+      "id": "8b2589c2-35b8-56dd-8cca-c3881c4aecc9",
+      "name": "Nota · controlli",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1260,
+        50
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://controlli:8099/controlla",
+        "options": {
+          "timeout": 600000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ doc_id: $json.doc_id, percorso_originale: $json.provenienza === 'locale' ? $json.url_o_percorso : null, nome_file: $json.url_o_percorso }) }}"
+      },
+      "id": "200692fc-d9b0-5be2-9920-853ede5a2cdf",
+      "name": "Controlli di sicurezza",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1300,
+        200
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "toText",
+        "sourceProperty": "testo_normalizzato",
+        "options": {
+          "fileName": "={{ $json.doc_id }}.txt"
+        }
+      },
+      "id": "ba413442-e176-5963-b0dc-fdab531aed07",
+      "name": "Testo normalizzato in un file",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        1560,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "=/dati/testi/{{ $('Controlli di sicurezza').item.json.doc_id }}.txt",
+        "dataPropertyName": "data",
+        "options": {}
+      },
+      "id": "97c9f6b5-0437-5ad9-b911-50d2f0352c07",
+      "name": "Salva il testo normalizzato",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1820,
+        200
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "78a300c9-3711-5f15-b4c9-bd0d700adb09",
+              "leftValue": "={{ $('Controlli di sicurezza').item.json.sospetto }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "9321c02e-e3d4-5aed-80d8-fb335a1cf736",
+      "name": "Ci sono segnalazioni?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2080,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d184adc0-7b74-5c9a-8087-02f527f29c7d",
+              "name": "messaggio",
+              "value": "={{ $('Controlli di sicurezza').item.json.doc_id + ': nessun elemento sospetto. Se lo ritieni pertinente, portalo ad approvato in NocoDB.' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fceb7071-7140-5765-860e-27398e0bfc41",
+      "name": "Nessun elemento sospetto",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2340,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "146b71db-13f0-5ced-a332-883ad085cb47",
+              "name": "segnalazioni",
+              "value": "={{ $('Controlli di sicurezza').item.json.segnalazioni.map((s, i) => ({ segnalazione_id: 'S' + $now.toFormat('yyMMddHHmmss') + '-' + $('Controlli di sicurezza').item.json.doc_id + '-' + (i + 1), doc_id: $('Controlli di sicurezza').item.json.doc_id, tipo: s.tipo, estratto: s.estratto, decisione: 'da_decidere', motivazione: '' })) }}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c5b2d901-e471-5e90-a5e1-4f108dddd86a",
+      "name": "Elenco segnalazioni",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2340,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "segnalazioni",
+        "options": {}
+      },
+      "id": "e8840c4c-b232-51e4-a2d2-067bdc51f4a4",
+      "name": "Una segnalazione per riga",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        2600,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://nocodb:8080/api/v2/tables/__TBL_segnalazioni_sicurezza__/records",
+        "options": {
+          "timeout": 120000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "86c3301f-1792-5265-a9aa-93c2d54cdbba",
+      "name": "Registra la segnalazione",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2860,
+        200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "labCredNocoDB0001",
+          "name": "NocoDB · registri"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "registrate",
+        "options": {}
+      },
+      "id": "6e80c999-cb0f-5a3a-9549-4ea506d98ebe",
+      "name": "Riunisci",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        3120,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "http://nocodb:8080/api/v2/tables/__TBL_corpus_documenti__/records",
+        "options": {
+          "timeout": 120000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ id: $('Un documento alla volta').item.json.id, stato: 'in_quarantena' }) }}"
+      },
+      "id": "f395987d-83b5-5c13-98ad-6b200d9ab187",
+      "name": "Metti in quarantena",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3380,
+        200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "labCredNocoDB0001",
+          "name": "NocoDB · registri"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a200dc24-f801-5e2c-976d-4d08478170b6",
+              "name": "messaggio",
+              "value": "={{ $('Un documento alla volta').item.json.doc_id + ': in quarantena con ' + $('Riunisci').item.json.registrate.length + ' segnalazioni. Decidi in NocoDB.' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "0bb633fe-cc6b-52c4-b079-b1399217e884",
+      "name": "Documento in quarantena",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3640,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4f2b319d-c640-5f16-b1e0-0e67f41e6ed8",
+              "name": "messaggio",
+              "value": "={{ 'Il passaggio «' + $prevNode.name + '» non è riuscito. Nessun record è stato lasciato a metà. Controlla che il pannello del laboratorio sia tutto verde e riesegui il workflow. Dettaglio tecnico: ' + (typeof $json.error === 'string' ? $json.error : (($json.error && $json.error.message) || JSON.stringify($json).slice(0, 300))) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "106f2336-debe-5ba1-8b61-2dd446017cd0",
+      "name": "Spiega l'errore",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2080,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "errorMessage": "={{ $json.messaggio }}"
+      },
+      "id": "97968cc2-2b8f-5776-b106-a9961a3d1944",
+      "name": "Ferma con messaggio",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        2340,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Ramo d'errore: se un passaggio non riesce, il workflow si ferma con un messaggio in italiano e non lascia record a metà. Leggi il messaggio nella lista delle esecuzioni.",
+        "height": 120,
+        "width": 520,
+        "color": 7
+      },
+      "id": "e381b78e-dba2-5f8a-a6db-f5c033b0ef11",
+      "name": "Nota · errori",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2040,
+        650
+      ]
+    }
+  ],
+  "connections": {
+    "Avvia a mano": {
+      "main": [
+        [
+          {
+            "node": "PARAMETRI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PARAMETRI": {
+      "main": [
+        [
+          {
+            "node": "Documenti da controllare",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Documenti da controllare": {
+      "main": [
+        [
+          {
+            "node": "Un record per riga",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Spiega l'errore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Un record per riga": {
+      "main": [
+        [
+          {
+            "node": "Un documento alla volta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Un documento alla volta": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Controlli di sicurezza",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Controlli di sicurezza": {
+      "main": [
+        [
+          {
+            "node": "Testo normalizzato in un file",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Spiega l'errore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Testo normalizzato in un file": {
+      "main": [
+        [
+          {
+            "node": "Salva il testo normalizzato",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salva il testo normalizzato": {
+      "main": [
+        [
+          {
+            "node": "Ci sono segnalazioni?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Spiega l'errore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ci sono segnalazioni?": {
+      "main": [
+        [
+          {
+            "node": "Elenco segnalazioni",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Nessun elemento sospetto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nessun elemento sospetto": {
+      "main": [
+        [
+          {
+            "node": "Un documento alla volta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Elenco segnalazioni": {
+      "main": [
+        [
+          {
+            "node": "Una segnalazione per riga",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Una segnalazione per riga": {
+      "main": [
+        [
+          {
+            "node": "Registra la segnalazione",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registra la segnalazione": {
+      "main": [
+        [
+          {
+            "node": "Riunisci",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Spiega l'errore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Riunisci": {
+      "main": [
+        [
+          {
+            "node": "Metti in quarantena",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Metti in quarantena": {
+      "main": [
+        [
+          {
+            "node": "Documento in quarantena",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Spiega l'errore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Documento in quarantena": {
+      "main": [
+        [
+          {
+            "node": "Un documento alla volta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Spiega l'errore": {
+      "main": [
+        [
+          {
+            "node": "Ferma con messaggio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "pinData": {},
+  "tags": [],
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "laboratorio": "kit 0.1.0"
+  }
+}

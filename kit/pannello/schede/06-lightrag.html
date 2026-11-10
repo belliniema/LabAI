@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>06 · L&#x27;interfaccia di LightRAG</title>
+<style>
+:root { --sfondo:#f6f4ef; --carta:#fff; --testo:#1f2328; --tenue:#5b6168; --bordo:#dcd8cf; --accento:#7a2e1d; --accento-chiaro:#f3e3dc; }
+@media (prefers-color-scheme: dark) { :root { --sfondo:#16181b; --carta:#1f2226; --testo:#e8e6e1; --tenue:#a3a8ae; --bordo:#33373d; --accento:#e5a48f; --accento-chiaro:#3a2620; } }
+body { margin:0; background:var(--sfondo); color:var(--testo); font:17px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+main { max-width:820px; margin:0 auto; padding:24px 16px 64px; }
+h1 { font-family:Georgia,serif; font-weight:600; } h2 { margin-top:2em; }
+a { color:var(--accento); } code { background:var(--accento-chiaro); padding:1px 5px; border-radius:4px; font-size:.9em; }
+table { border-collapse:collapse; width:100%; margin:1em 0; background:var(--carta); display:block; overflow-x:auto; }
+th,td { border:1px solid var(--bordo); padding:6px 10px; text-align:left; vertical-align:top; }
+blockquote { margin:1em 0; padding:10px 16px; border-left:4px solid var(--accento); background:var(--accento-chiaro); border-radius:6px; }
+.schermata { border:2px dashed var(--bordo); color:var(--tenue); padding:18px; border-radius:8px; text-align:center; font-size:.9em; background:var(--carta); }
+nav { font-size:.9em; }
+</style></head><body><main>
+<nav><a href="../index.html">← Pannello</a> · <a href="index.html">Tutte le schede</a></nav>
+<h1>06 · L'interfaccia di LightRAG</h1>
+<p><strong>Obiettivo.</strong> Esplorare il grafo di conoscenza, confrontare il tuo grafo con quello demo e porre domande dall'interfaccia. Un <em>grafo di conoscenza</em> è una rete di <strong>entità</strong> (persone, luoghi, eventi…) collegate da <strong>relazioni</strong>, ricavate dai documenti da un modello linguistico.</p>
+<ol><li>Dal pannello apri <strong>LightRAG · il tuo grafo</strong> (porta 9621) o <strong>LightRAG · grafo demo</strong> (porta 9622, sola lettura).</li><li>Alla prima apertura l'interfaccia chiede la <strong>chiave API</strong>: copiala da <code>dati/CREDENZIALI.txt</code> (è diversa per i due grafi).<div class="schermata" role="img" aria-label="SCHERMATA: richiesta della chiave API">📷 SCHERMATA: richiesta della chiave API</div></li><li>Scheda <strong>Documents</strong>: i documenti indicizzati, con il nome <code>D0001.txt</code> ecc. (è il <code>doc_id</code>).</li><li>Scheda <strong>Knowledge Graph</strong>: scegli un'etichetta (es. <em>Garibaldi</em>) e osserva i collegamenti. Clic su un nodo → descrizione e documenti di origine.<div class="schermata" role="img" aria-label="SCHERMATA: vista del grafo con un nodo selezionato">📷 SCHERMATA: vista del grafo con un nodo selezionato</div></li><li>Scheda <strong>Retrieval</strong>: domande di prova. Per le domande da registrare usa <strong>WF06</strong>, che salva tutto in NocoDB.</li></ol>
+<h2>Modalità di recupero</h2>
+<table><thead><tr><th>Modalità</th><th>Che cosa usa</th></tr></thead><tbody><tr><td><code>naive</code></td><td>solo i passi di testo più simili alla domanda (RAG classico)</td></tr><tr><td><code>local</code></td><td>entità vicine alla domanda e i loro collegamenti diretti</td></tr><tr><td><code>global</code></td><td>relazioni e temi d'insieme</td></tr><tr><td><code>hybrid</code></td><td><code>local</code> + <code>global</code></td></tr><tr><td><code>mix</code></td><td>grafo + passi di testo</td></tr></tbody></table>
+<h2>Correggere il grafo</h2>
+<p>Ogni correzione (fusione di duplicati, rinomina, relazione sbagliata) va registrata in <strong>correzioni_grafo</strong> con motivazione e <code>doc_id_fonte</code>, <em>anche</em> se la fai nell'interfaccia. Anche le <strong>conferme</strong> contano: verificare che una relazione è corretta è lavoro di metodo.</p>
+<h2>Il grafo demo</h2>
+<p>Il docente lo ha costruito con un modello più grande. In L11 confronta: quante entità trova in più? Quali errori ha il tuo modello e non il grande, e viceversa? Ogni modifica al grafo demo sparisce al riavvio.</p>
+<blockquote><strong>Domanda di riflessione.</strong> Il grafo sembra una mappa oggettiva del corpus. Quali scelte (tipi di entità, modello, segmentazione del testo) l'hanno già interpretato prima che tu lo guardassi?</blockquote>
+</main></body></html>

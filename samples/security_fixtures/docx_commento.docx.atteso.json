@@ -1,0 +1,12 @@
+{
+  "file": "docx_commento.docx",
+  "descrizione": "Documento Word con l'istruzione-esca in un commento",
+  "richiede_tika": false,
+  "segnalazioni_attese": [
+    {
+      "tipo": "metadati",
+      "contiene": "CANARINO-42"
+    }
+  ],
+  "nota": "Fixture didattica del Laboratorio di IA per la ricerca storica: testo inventato, nessuna persona reale."
+}

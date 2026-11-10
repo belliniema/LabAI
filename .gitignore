@@ -1,0 +1,9 @@
+# Segreti e stato locale: mai nel repository (CLAUDE.md §15)
+kit/.env
+kit/.stato/
+kit/dati/
+kit/offline/
+build/
+dist/
+.DS_Store
+__pycache__/

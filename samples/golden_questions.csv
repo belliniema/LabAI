@@ -1,0 +1,11 @@
+id,domanda,tipologia,modalita,doc_id_attesi,risposta_di_riferimento
+G01,In quale città e in quale data Gioacchino Murat firmò il proclama agli italiani?,fattuale,local,D0002,"Rimini, 30 marzo 1815"
+G02,"Quale religione lo Statuto albertino dichiara religione dello Stato, e come tratta gli altri culti?",fattuale,local,D0004,"La cattolica, apostolica e romana; gli altri culti esistenti sono tollerati secondo le leggi (art. 1)"
+G03,Dove intendeva sbarcare Carlo Pisacane con la sua spedizione?,fattuale,local,D0005,"A Sapri, nel Principato citeriore"
+G04,Chi guidava la prima compagnia nella marcia dei Mille verso Salemi?,fattuale,local,D0006,Nino Bixio
+G05,"Chi comandava il Corpo d'Osservazione schierato ai confini dello Stato pontificio nel 1870, e con quali divisioni?",relazionale,local,D0010,"Il generale Cadorna; divisioni di Cosenz, Maze de la Roche e Ferrero"
+G06,Quale battaglia è riferita nel Bollettino n. 41 delle leggi della Repubblica Romana?,fattuale,hybrid,D0009,La battaglia di Velletri (1849)
+G07,Quali figure e quali episodi della storia italiana sono evocati nel Canto nazionale di Mameli?,relazionale,local,D0008,"Scipione, Legnano, Ferruccio, Balilla (tra gli altri)"
+G08,Che rapporto c'è tra il proclama dell'8 febbraio 1848 di Carlo Alberto e lo Statuto del 4 marzo 1848?,comparativa,hybrid,D0003;D0004,"Il proclama annuncia le basi dello Statuto, che il preambolo dello Statuto richiama esplicitamente"
+G09,Come giudica Pisacane il regime costituzionale del Piemonte e la Casa Savoia?,interpretativa,hybrid,D0005,Più dannoso della tirannide di Ferdinando II; dominio di Casa Savoia e di Casa d'Austria per lui equivalenti
+G10,Che cosa rimprovera e che cosa chiede Giuseppe Mazzini a Carlo Alberto nella lettera del 1831?,interpretativa,hybrid,D0001,Gli ricorda che gli italiani videro in lui un liberatore e lo spinge a scegliere tra la causa della libertà italiana e il dispotismo; lo accusa di inimicarsi l'Austria senza conquistare gli italiani

@@ -1,0 +1,239 @@
+# Laboratorio di IA per la ricerca storica · stack Docker (CLAUDE.md §3, ADR-001).
+# Non modificare a mano: lo avvia il file "Avvia laboratorio".
+# Versioni fissate, porte solo su 127.0.0.1, limiti di memoria per ogni container.
+# Le variabili ${...} arrivano da .env, generato al primo avvio con segreti locali casuali.
+
+name: laboratorio-ia
+
+x-ollama-host: &ollama-host
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+
+x-log: &log
+  logging:
+    driver: json-file
+    options:
+      max-size: "5m"
+      max-file: "2"
+
+services:
+
+  pannello:
+    image: caddy:2.11.9-alpine
+    <<: [*ollama-host, *log]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:80"
+    volumes:
+      - ./config/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./pannello:/srv/pannello:ro
+      - ./.stato:/srv/stato:ro
+    mem_limit: 64m
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:2.47.3
+    <<: [*ollama-host, *log]
+    restart: unless-stopped
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:5678:5678"
+    environment: &n8n-env
+      N8N_ENCRYPTION_KEY: "${N8N_ENCRYPTION_KEY:?Manca il file .env, avvia il laboratorio con il file Avvia laboratorio}"
+      N8N_HOST: localhost
+      N8N_PORT: "5678"
+      N8N_PROTOCOL: http
+      N8N_EDITOR_BASE_URL: http://localhost:5678/
+      N8N_WEBHOOK_URL: http://localhost:5678/
+      N8N_SECURE_COOKIE: "false"
+      GENERIC_TIMEZONE: Europe/Rome
+      TZ: Europe/Rome
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_VERSION_NOTIFICATIONS_ENABLED: "false"
+      N8N_PERSONALIZATION_ENABLED: "false"
+      N8N_HIRING_BANNER_ENABLED: "false"
+      N8N_TEMPLATES_ENABLED: "false"
+      N8N_RESTRICT_FILE_ACCESS_TO: "/dati;/kit-prompts"
+      NODES_EXCLUDE: '["n8n-nodes-base.executeCommand","n8n-nodes-base.localFileTrigger","n8n-nodes-base.code"]'
+      EXECUTIONS_DATA_PRUNE: "true"
+      EXECUTIONS_DATA_MAX_AGE: "720"
+      DB_SQLITE_POOL_SIZE: "2"
+      N8N_PAYLOAD_SIZE_MAX: "64"
+      LAB_KIT_VERSION: ${LAB_KIT_VERSION:-0.1.0}
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./dati:/dati
+      - ./prompts:/kit-prompts:ro
+    mem_limit: 640m
+
+  # Prima configurazione automatica (CLAUDE.md §6). Gira prima di n8n, poi termina.
+  # Al secondo avvio trova il marcatore e termina subito.
+  init:
+    image: docker.n8n.io/n8nio/n8n:2.47.3
+    <<: *log
+    restart: "no"
+    depends_on:
+      nocodb:
+        condition: service_healthy
+      lightrag:
+        condition: service_healthy
+      tika:
+        condition: service_started
+      controlli:
+        condition: service_started
+    entrypoint: ["node", "/init/init.js"]
+    environment:
+      <<: *n8n-env
+      NC_URL: http://nocodb:8080
+      NC_ADMIN_EMAIL: ${NC_ADMIN_EMAIL}
+      NC_ADMIN_PASSWORD: ${NC_ADMIN_PASSWORD}
+      LIGHTRAG_URL: http://lightrag:9621
+      LIGHTRAG_API_KEY: ${LIGHTRAG_API_KEY}
+      LIGHTRAG_DEMO_API_KEY: ${LIGHTRAG_DEMO_API_KEY}
+      TIKA_URL: http://tika:9998
+      CONTROLLI_URL: http://controlli:8099
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./dati:/dati
+      - ./init:/init:ro
+      - ./workflows:/kit-workflows:ro
+      - ./.stato:/stato
+    mem_limit: 512m
+
+  nocodb:
+    image: nocodb/nocodb:2026.10.1
+    <<: *log
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      NC_ADMIN_EMAIL: ${NC_ADMIN_EMAIL}
+      NC_ADMIN_PASSWORD: ${NC_ADMIN_PASSWORD}
+      NC_AUTH_JWT_SECRET: ${NC_AUTH_JWT_SECRET}
+      NC_DISABLE_TELE: "true"
+      NC_PUBLIC_URL: http://localhost:8080
+      NODE_OPTIONS: --max-old-space-size=320
+    volumes:
+      - nocodb_data:/usr/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    mem_limit: 448m
+
+  lightrag:
+    image: ghcr.io/hkuds/lightrag:v1.5.7
+    <<: [*ollama-host, *log]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9621:9621"
+    env_file:
+      - ./config/lightrag.env
+      - ./config/profili/${LAB_PROFILO:-leggero}.env
+    environment:
+      HOST: 0.0.0.0
+      PORT: "9621"
+      WORKING_DIR: /app/data/rag_storage
+      INPUT_DIR: /app/data/inputs
+      LIGHTRAG_API_KEY: ${LIGHTRAG_API_KEY}
+      WORKERS: "1"
+    volumes:
+      - lightrag_data:/app/data/rag_storage
+      - lightrag_inputs:/app/data/inputs
+      - ./config/lightrag-prompts:/app/data/prompts:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:9621/health', timeout=4).status==200 else 1)"]
+      interval: 10s
+      timeout: 6s
+      retries: 30
+      start_period: 30s
+    mem_limit: 768m
+
+  # Grafo dimostrativo del docente: copiato a ogni avvio in memoria (tmpfs) da una cartella in
+  # sola lettura, quindi ogni modifica sparisce al riavvio (ADR-005).
+  lightrag-demo:
+    image: ghcr.io/hkuds/lightrag:v1.5.7
+    <<: [*ollama-host, *log]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9622:9621"
+    env_file:
+      - ./config/lightrag.env
+      - ./config/profili/${LAB_PROFILO:-leggero}.env
+    environment:
+      HOST: 0.0.0.0
+      PORT: "9621"
+      WORKING_DIR: /app/data/rag_storage
+      INPUT_DIR: /app/data/inputs
+      LIGHTRAG_API_KEY: ${LIGHTRAG_DEMO_API_KEY}
+      WEBUI_TITLE: "Laboratorio IA · grafo demo (sola lettura)"
+      WORKERS: "1"
+    entrypoint: ["/bin/sh", "-c", "cp -R /demo-ro/. /app/data/rag_storage/ 2>/dev/null; exec docker-entrypoint.sh python -m lightrag.api.lightrag_server"]
+    tmpfs:
+      - /app/data/rag_storage:size=64m
+      - /app/data/inputs:size=1m
+    volumes:
+      - ./demo/grafo:/demo-ro:ro
+      - ./config/lightrag-prompts:/app/data/prompts:ro
+    mem_limit: 320m
+
+  tika:
+    image: apache/tika:3.3.3.0-full
+    <<: *log
+    restart: unless-stopped
+    # Nessuna porta pubblicata: raggiungibile solo dagli altri container.
+    expose:
+      - "9998"
+    environment:
+      JAVA_TOOL_OPTIONS: -Xmx448m -XX:+UseSerialGC
+    mem_limit: 640m
+
+  # Servizio interno dei controlli di sicurezza (ADR-003). Usa l'immagine di n8n solo per Node.js.
+  controlli:
+    image: docker.n8n.io/n8nio/n8n:2.47.3
+    <<: *log
+    restart: unless-stopped
+    entrypoint: ["node", "/servizio/server.js"]
+    expose:
+      - "8099"
+    environment:
+      TIKA_URL: http://tika:9998
+      ALLOWLIST: /config/allowlist_domini.txt
+      RITARDO_WEB_MS: "3000"
+    volumes:
+      - ./servizi/controlli:/servizio:ro
+      - ./config/allowlist_domini.txt:/config/allowlist_domini.txt:ro
+      - ./dati:/dati:ro
+      - ./.stato:/stato
+    mem_limit: 96m
+
+  # Profilo facoltativo: solo con 16 GB di RAM (CLAUDE.md §3).
+  neo4j:
+    image: neo4j:5.26.33-community
+    <<: *log
+    profiles: ["avanzato"]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:7474:7474"
+      - "127.0.0.1:7687:7687"
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD}
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_apoc_import_file_enabled: "true"
+      NEO4J_server_memory_heap_initial__size: 256m
+      NEO4J_server_memory_heap_max__size: 512m
+      NEO4J_server_memory_pagecache_size: 128m
+    volumes:
+      - neo4j_data:/data
+      - ./dati/dossier:/import:ro
+    mem_limit: 1g
+
+volumes:
+  n8n_data:
+  nocodb_data:
+  lightrag_data:
+  lightrag_inputs:
+  neo4j_data:

@@ -1,0 +1,12 @@
+{
+  "file": "immagine_testo_minuscolo.png",
+  "descrizione": "Immagine con una riga minuscola e grigio chiaro (serve l'OCR di Tika)",
+  "richiede_tika": true,
+  "segnalazioni_attese": [
+    {
+      "tipo": "testo_in_immagine",
+      "contiene": "CANARINO"
+    }
+  ],
+  "nota": "Fixture didattica del Laboratorio di IA per la ricerca storica: testo inventato, nessuna persona reale."
+}

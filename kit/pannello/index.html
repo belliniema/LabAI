@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pannello del laboratorio</title>
+<style>
+  :root {
+    --sfondo: #f6f4ef; --carta: #ffffff; --testo: #1f2328; --tenue: #5b6168; --bordo: #dcd8cf;
+    --verde: #1a7f37; --verde-chiaro: #dafbe1; --rosso: #c62828; --rosso-chiaro: #fde7e7;
+    --grigio: #8a8f96; --grigio-chiaro: #eceae4; --accento: #7a2e1d; --accento-chiaro: #f3e3dc;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --sfondo: #16181b; --carta: #1f2226; --testo: #e8e6e1; --tenue: #a3a8ae; --bordo: #33373d;
+      --verde: #4ac26b; --verde-chiaro: #13301c; --rosso: #ff7b72; --rosso-chiaro: #3a1715;
+      --grigio: #8a8f96; --grigio-chiaro: #2a2d32; --accento: #e5a48f; --accento-chiaro: #3a2620;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--sfondo); color: var(--testo); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { padding: 28px 16px 8px; max-width: 1080px; margin: 0 auto; }
+  header p { margin: 4px 0 0; color: var(--tenue); }
+  h1 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-weight: 600; font-size: 1.9rem; }
+  h2 { font-size: 1.05rem; margin: 0 0 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--tenue); font-weight: 600; }
+  main { max-width: 1080px; margin: 0 auto; padding: 8px 16px 48px; display: grid; gap: 28px; }
+  .riquadri { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+  .servizio { background: var(--carta); border: 1px solid var(--bordo); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+  .servizio h3 { margin: 0; font-size: 1.05rem; display: flex; align-items: center; gap: 10px; }
+  .servizio p { margin: 0; color: var(--tenue); font-size: .92rem; flex: 1; }
+  .spia { width: 12px; height: 12px; border-radius: 50%; background: var(--grigio); flex: none; box-shadow: 0 0 0 3px var(--grigio-chiaro); }
+  .spia.verde { background: var(--verde); box-shadow: 0 0 0 3px var(--verde-chiaro); }
+  .spia.rosso { background: var(--rosso); box-shadow: 0 0 0 3px var(--rosso-chiaro); }
+  .stato-testo { font-size: .85rem; font-weight: 600; }
+  .stato-testo.verde { color: var(--verde); } .stato-testo.rosso { color: var(--rosso); } .stato-testo.grigio { color: var(--grigio); }
+  a.apri, button { font: inherit; font-size: .92rem; border-radius: 6px; padding: 7px 14px; cursor: pointer; text-decoration: none; text-align: center; }
+  a.apri { background: var(--accento); color: #fff; border: 1px solid var(--accento); align-self: flex-start; }
+  @media (prefers-color-scheme: dark) { a.apri { color: #1a1a1a; } }
+  a.apri[aria-disabled="true"] { opacity: .45; pointer-events: none; }
+  button { background: var(--carta); color: var(--testo); border: 1px solid var(--bordo); }
+  button[aria-pressed="true"] { background: var(--accento-chiaro); border-color: var(--accento); font-weight: 600; }
+  .scheda { background: var(--carta); border: 1px solid var(--bordo); border-radius: 10px; padding: 18px; }
+  .riga { display: flex; flex-wrap: wrap; gap: 8px 28px; }
+  .riga div span { display: block; color: var(--tenue); font-size: .82rem; }
+  .riga div strong { font-size: 1.05rem; }
+  .avviso { border-left: 4px solid var(--accento); background: var(--accento-chiaro); padding: 12px 14px; border-radius: 6px; margin: 0; }
+  .avviso.errore { border-color: var(--rosso); background: var(--rosso-chiaro); }
+  .bottoni { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  ul.schede { columns: 2 260px; margin: 0; padding-left: 18px; }
+  ul.schede li { margin: 0 0 6px; break-inside: avoid; }
+  ul.schede a { color: var(--accento); }
+  #esito-azione { margin-top: 10px; min-height: 1.5em; color: var(--tenue); font-size: .92rem; }
+  footer { max-width: 1080px; margin: 0 auto; padding: 0 16px 32px; color: var(--tenue); font-size: .85rem; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Laboratorio di IA per la ricerca storica</h1>
+  <p>Università Roma Tre · Dipartimento di Studi Umanistici — il tuo ambiente locale: i documenti restano su questo computer.</p>
+</header>
+<main>
+  <section aria-labelledby="t-avvisi" id="avvisi" hidden>
+    <h2 id="t-avvisi">Da fare</h2>
+    <div id="lista-avvisi" style="display:grid; gap:10px"></div>
+  </section>
+
+  <section aria-labelledby="t-servizi">
+    <h2 id="t-servizi">Servizi</h2>
+    <div class="riquadri" id="riquadri"></div>
+  </section>
+
+  <section aria-labelledby="t-profilo" class="scheda">
+    <h2 id="t-profilo">Il tuo computer e i modelli</h2>
+    <div class="riga">
+      <div><span>Profilo dei modelli</span><strong id="profilo">—</strong></div>
+      <div><span>Modello linguistico</span><strong id="llm">—</strong></div>
+      <div><span>Embedding (uguale per tutta la classe)</span><strong id="embedding">—</strong></div>
+      <div><span>Corpus consigliato</span><strong id="corpus">—</strong></div>
+      <div><span>Memoria</span><strong id="ram">—</strong></div>
+      <div><span>Spazio libero</span><strong id="disco">—</strong></div>
+      <div><span>Versione del kit</span><strong id="versione">—</strong></div>
+    </div>
+    <p style="margin:16px 0 4px">Il profilo si sceglie da solo in base alla memoria. Puoi forzarlo qui; vale dal prossimo avvio:</p>
+    <div class="bottoni" role="group" aria-label="Scelta del profilo">
+      <button data-profilo="automatico">Automatico</button>
+      <button data-profilo="leggero">Leggero (8 GB)</button>
+      <button data-profilo="standard">Standard (16 GB)</button>
+    </div>
+    <div id="riga-neo4j" hidden>
+      <p style="margin:16px 0 4px">Neo4j Browser (facoltativo, solo con 16 GB di RAM) per esplorare il grafo esportato:</p>
+      <div class="bottoni"><button id="neo4j-on">Attiva Neo4j</button><button id="neo4j-off">Disattiva Neo4j</button></div>
+    </div>
+    <div id="esito-azione" role="status"></div>
+  </section>
+
+  <section aria-labelledby="t-schede" class="scheda">
+    <h2 id="t-schede">Schede</h2>
+    <ul class="schede">
+      <li><a href="schede/03-primo-avvio.html">Primo avvio e pannello</a></li>
+      <li><a href="schede/04-nocodb.html">I registri in NocoDB</a></li>
+      <li><a href="schede/05-n8n-e-workflow.html">n8n e i workflow WF00–WF09</a></li>
+      <li><a href="schede/06-lightrag.html">L'interfaccia di LightRAG</a></li>
+      <li><a href="schede/07-openrefine.html">OpenRefine e riconciliazione</a></li>
+      <li><a href="schede/08-backup-e-diagnostica.html">Backup e Diagnostica</a></li>
+      <li><a href="schede/09-portatile-lento.html">Il mio portatile è lento: che cosa fare</a></li>
+      <li><a href="schede/index.html">Tutte le schede</a></li>
+    </ul>
+  </section>
+</main>
+<footer>Le risposte del modello sono proposte da verificare: l'esito lo scrivi tu nel registro delle verifiche.</footer>
+
+<script>
+const SERVIZI = [
+  { id: 'n8n', nome: 'n8n · workflow', descr: 'Editor dei workflow WF00–WF09: ingestione, controlli, indicizzazione, domande.', url: 'http://localhost:5678' },
+  { id: 'nocodb', nome: 'NocoDB · registri', descr: 'Registro del corpus, segnalazioni, entità, correzioni, interrogazioni, verifiche, uso dell’IA.', url: 'http://localhost:8080' },
+  { id: 'lightrag', nome: 'LightRAG · il tuo grafo', descr: 'Grafo di conoscenza del tuo corpus: documenti, grafo, domande.', url: 'http://localhost:9621/webui/' },
+  { id: 'lightrag-demo', nome: 'LightRAG · grafo demo', descr: 'Grafo preparato dal docente con un modello grande. Sola lettura.', url: 'http://localhost:9622/webui/' },
+  { id: 'ollama', nome: 'Ollama · modelli', descr: 'I modelli linguistici sul tuo computer (applicazione con l’icona del lama).' },
+  { id: 'tika', nome: 'Apache Tika', descr: 'Estrae testo e metadati da PDF, Word e immagini (OCR). Lavora dietro le quinte.' },
+  { id: 'controlli', nome: 'Controlli di sicurezza', descr: 'Cerca testo nascosto e istruzioni-esca nei documenti (WF04). Dietro le quinte.' },
+  { id: 'neo4j', nome: 'Neo4j (facoltativo)', descr: 'Esplorazione avanzata del grafo, solo con 16 GB di RAM.', url: 'http://localhost:7474', facoltativo: true },
+];
+
+const riquadri = document.getElementById('riquadri');
+for (const s of SERVIZI) {
+  const el = document.createElement('article');
+  el.className = 'servizio';
+  el.innerHTML = `<h3><span class="spia" id="spia-${s.id}" aria-hidden="true"></span>${s.nome}</h3>
+    <span class="stato-testo grigio" id="stato-${s.id}">controllo…</span>
+    <p>${s.descr}</p>
+    ${s.url ? `<a class="apri" id="apri-${s.id}" href="${s.url}" target="_blank" rel="noopener" aria-disabled="true">Apri</a>` : ''}`;
+  riquadri.appendChild(el);
+}
+
+async function controlla(s) {
+  let acceso = false;
+  try { const r = await fetch(`/salute/${s.id}`, { cache: 'no-store' }); acceso = r.ok; } catch (e) { acceso = false; }
+  const spia = document.getElementById(`spia-${s.id}`), testo = document.getElementById(`stato-${s.id}`), apri = document.getElementById(`apri-${s.id}`);
+  const colore = acceso ? 'verde' : (s.facoltativo ? 'grigio' : 'rosso');
+  spia.className = 'spia ' + colore;
+  testo.className = 'stato-testo ' + colore;
+  testo.textContent = acceso ? 'acceso' : (s.facoltativo ? 'non attivo' : 'non risponde');
+  if (apri) apri.setAttribute('aria-disabled', acceso ? 'false' : 'true');
+  return acceso;
+}
+
+async function leggiJson(url) {
+  try { const r = await fetch(url, { cache: 'no-store' }); return r.ok ? await r.json() : null; } catch (e) { return null; }
+}
+
+function avviso(testo, errore) {
+  const p = document.createElement('p');
+  p.className = 'avviso' + (errore ? ' errore' : '');
+  p.innerHTML = testo;
+  document.getElementById('lista-avvisi').appendChild(p);
+  document.getElementById('avvisi').hidden = false;
+}
+
+async function aggiorna() {
+  document.getElementById('lista-avvisi').innerHTML = '';
+  document.getElementById('avvisi').hidden = true;
+  const esiti = await Promise.all(SERVIZI.map(controlla));
+  const stato = await leggiJson('/stato/stato.json');
+  const init = await leggiJson('/stato/init.json');
+  if (stato) {
+    document.getElementById('profilo').textContent = stato.profilo;
+    document.getElementById('llm').textContent = stato.llm + ` (contesto ${stato.contesto} token)`;
+    document.getElementById('embedding').textContent = stato.embedding;
+    document.getElementById('corpus').textContent = `fino a ${stato.corpus_consigliato} documenti`;
+    document.getElementById('ram').textContent = `${stato.ram_gb} GB`;
+    document.getElementById('disco').textContent = `${stato.disco_libero_gb} GB`;
+    document.getElementById('versione').textContent = stato.versione_kit;
+    document.getElementById('riga-neo4j').hidden = stato.ram_gb < 16;
+    if (stato.disco_libero_gb < 5) avviso(`Restano solo ${stato.disco_libero_gb} GB liberi sul disco: libera spazio per non interrompere l’indicizzazione.`, true);
+  }
+  if (init && init.stato === 'errore') avviso(`<strong>Prima configurazione non riuscita.</strong> ${init.messaggio}<br>${init.rimedio || ''}`, true);
+  if (init && init.stato === 'in_corso') avviso('Prima configurazione in corso: tabelle e workflow saranno pronti tra qualche minuto.');
+  if (esiti[0]) avviso('<strong>Primo accesso a n8n:</strong> la prima volta n8n chiede di creare il tuo account (nome, email, password). Usa una password che ricordi: resta solo su questo computer. Vedi la scheda <a href="schede/03-primo-avvio.html">Primo avvio</a>.');
+  const spenti = SERVIZI.filter((s, i) => !esiti[i] && !s.facoltativo).map(s => s.nome);
+  if (spenti.length) avviso(`Non rispondono: ${spenti.join(', ')}. Se hai appena avviato il laboratorio attendi un minuto; altrimenti fai di nuovo doppio clic su <strong>Avvia laboratorio</strong>.`, true);
+}
+
+async function azione(percorso, corpo) {
+  const out = document.getElementById('esito-azione');
+  try {
+    const r = await fetch(percorso, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Laboratorio': '1' }, body: JSON.stringify(corpo) });
+    const j = await r.json();
+    out.textContent = j.messaggio || j.errore || '';
+  } catch (e) { out.textContent = 'Non riesco a salvare la preferenza: il servizio dei controlli non risponde.'; }
+}
+document.querySelectorAll('[data-profilo]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-profilo]').forEach(x => x.setAttribute('aria-pressed', x === b ? 'true' : 'false'));
+  azione('/azioni/profilo', { profilo: b.dataset.profilo });
+}));
+document.getElementById('neo4j-on').addEventListener('click', () => azione('/azioni/neo4j', { attivo: true }));
+document.getElementById('neo4j-off').addEventListener('click', () => azione('/azioni/neo4j', { attivo: false }));
+
+aggiorna();
+setInterval(aggiorna, 15000);
+</script>
+</body>
+</html>

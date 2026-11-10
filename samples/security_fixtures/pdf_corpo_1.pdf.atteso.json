@@ -1,0 +1,12 @@
+{
+  "file": "pdf_corpo_1.pdf",
+  "descrizione": "PDF con una frase in corpo 1 (illeggibile a occhio)",
+  "richiede_tika": false,
+  "segnalazioni_attese": [
+    {
+      "tipo": "testo_nascosto",
+      "contiene": "CANARINO-42"
+    }
+  ],
+  "nota": "Fixture didattica del Laboratorio di IA per la ricerca storica: testo inventato, nessuna persona reale."
+}

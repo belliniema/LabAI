@@ -1,0 +1,830 @@
+{
+  "id": "labWF03bancadati",
+  "name": "WF03 · Ingestione da banche dati",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Che cosa fa\nInterroga una banca dati aperta e prepara nel registro del corpus una scheda per ogni risultato, con stato `da_acquisire`, titolo, autore, data, licenza e URL. Il testo si scarica poi con WF02.\n\n## Input\nLa fonte e la ricerca scritte in PARAMETRI.\n\n## Output\nNuovi record in `corpus_documenti` con provenienza `api`.\n\n## Che cosa puoi modificare\nSolo PARAMETRI: `fonte` (wikidata, internet_archive, europeana), `ricerca_sparql` (Wikidata), `ricerca` (Internet Archive, Europeana), `massimo_risultati`, `chiave_europeana` (gratuita, personale).\n\n## Rischi e limiti\nLe licenze dichiarate dalle banche dati vanno controllate documento per documento. Europeana richiede una chiave personale: non condividerla e cancellala prima di esportare il dossier.",
+        "height": 420,
+        "width": 760,
+        "color": 4
+      },
+      "id": "2d2fab5d-8a92-5eab-b9ec-770c3a30e9ab",
+      "name": "Nota del workflow",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -460
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "d4f84fd5-94da-5f7f-9e15-437b18c16af8",
+      "name": "Avvia a mano",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6618b57c-0952-51c1-b3ae-4125dc1d8822",
+              "name": "fonte",
+              "value": "internet_archive",
+              "type": "string"
+            },
+            {
+              "id": "72898a34-2265-5d2b-9ab9-3d0402b26523",
+              "name": "ricerca",
+              "value": "garibaldi AND mediatype:texts AND language:ita",
+              "type": "string"
+            },
+            {
+              "id": "daa49cb3-93de-5b6e-8ac4-99ffe44f1d52",
+              "name": "ricerca_sparql",
+              "value": "SELECT ?item ?itemLabel ?data WHERE { ?item wdt:P31 wd:Q178561; wdt:P585 ?data. FILTER(YEAR(?data) >= 1848 && YEAR(?data) <= 1849) SERVICE wikibase:label { bd:serviceParam wikibase:language \"it\". } } LIMIT 20",
+              "type": "string"
+            },
+            {
+              "id": "f99ab41c-15d5-5569-84df-df25fe0ae441",
+              "name": "massimo_risultati",
+              "value": 10,
+              "type": "number"
+            },
+            {
+              "id": "2e658c65-f756-5825-8310-cabdab1dbc4c",
+              "name": "chiave_europeana",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b2980d14-bb88-5441-a391-fb2b6dbd2823",
+      "name": "PARAMETRI",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        260,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "expression",
+        "numberOutputs": 3,
+        "output": "={{ ['wikidata', 'internet_archive', 'europeana'].indexOf($json.fonte) }}",
+        "options": {}
+      },
+      "id": "26daa365-907a-57cf-be66-4a8f9e3422d4",
+      "name": "Scegli la fonte",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        520,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://query.wikidata.org/sparql",
+        "options": {
+          "timeout": 120000
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ $json.ricerca_sparql }}"
+            },
+            {
+              "name": "format",
+              "value": "json"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/sparql-results+json"
+            },
+            {
+              "name": "User-Agent",
+              "value": "LaboratorioIA-RomaTre/0.1"
+            }
+          ]
+        }
+      },
+      "id": "10bbbc38-cd87-57d2-9128-c110f50e24a8",
+      "name": "Wikidata (SPARQL)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        780,
+        -200
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "results.bindings",
+        "options": {}
+      },
+      "id": "8cf081e9-ab83-59ad-8bbe-8e2aecc571fb",
+      "name": "Risultati Wikidata",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a2ecdcd0-9cb4-5cab-b252-f9f012055856",
+              "name": "titolo",
+              "value": "={{ ($json.itemLabel || {}).value }}",
+              "type": "string"
+            },
+            {
+              "id": "ddbad26a-4df2-5ddf-a16d-e01838c78e59",
+              "name": "data_documento",
+              "value": "={{ (($json.data || {}).value || '').slice(0, 10) }}",
+              "type": "string"
+            },
+            {
+              "id": "4a00acf3-a73f-5c6b-9313-4b0296e0aa50",
+              "name": "url_o_percorso",
+              "value": "={{ ($json.item || {}).value.replace('http://www.wikidata.org/entity/', 'https://www.wikidata.org/wiki/') }}",
+              "type": "string"
+            },
+            {
+              "id": "627b34b9-df1f-5c10-a3f8-e9d85e50c997",
+              "name": "istituzione_conservatrice",
+              "value": "Wikidata",
+              "type": "string"
+            },
+            {
+              "id": "33d8c063-c42c-57c7-b1d9-d27a5cf5f0ef",
+              "name": "licenza",
+              "value": "CC0 1.0 (dati Wikidata)",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ffb72914-4e46-53b9-85ea-0580fc4aa582",
+      "name": "Scheda da Wikidata",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1300,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://archive.org/advancedsearch.php",
+        "options": {
+          "timeout": 120000
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ $json.ricerca }}"
+            },
+            {
+              "name": "fl[]",
+              "value": "identifier"
+            },
+            {
+              "name": "fl[]",
+              "value": "title"
+            },
+            {
+              "name": "fl[]",
+              "value": "creator"
+            },
+            {
+              "name": "fl[]",
+              "value": "date"
+            },
+            {
+              "name": "fl[]",
+              "value": "licenseurl"
+            },
+            {
+              "name": "fl[]",
+              "value": "rights"
+            },
+            {
+              "name": "rows",
+              "value": "={{ $json.massimo_risultati }}"
+            },
+            {
+              "name": "output",
+              "value": "json"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "LaboratorioIA-RomaTre/0.1"
+            }
+          ]
+        }
+      },
+      "id": "5f04343f-174b-5649-bd0e-155d038c1795",
+      "name": "Internet Archive (ricerca)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        780,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "response.docs",
+        "options": {}
+      },
+      "id": "7e843a77-1381-5932-b9dd-e06ddd291206",
+      "name": "Risultati Internet Archive",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f731692a-e5d8-59f4-8d02-c8797d4c17c8",
+              "name": "titolo",
+              "value": "={{ [].concat($json.title || '')[0] }}",
+              "type": "string"
+            },
+            {
+              "id": "fd94a7f3-1967-57f6-b30a-a253bc4a6376",
+              "name": "autore",
+              "value": "={{ [].concat($json.creator || '').join('; ') }}",
+              "type": "string"
+            },
+            {
+              "id": "fb9e1f78-f2aa-5053-8ac6-9591c67dc0ac",
+              "name": "data_documento",
+              "value": "={{ [].concat($json.date || '')[0].slice(0, 10) }}",
+              "type": "string"
+            },
+            {
+              "id": "bd192bfb-4e16-509a-884d-e79c4bbc03e7",
+              "name": "url_o_percorso",
+              "value": "={{ 'https://archive.org/stream/' + $json.identifier + '/' + $json.identifier + '_djvu.txt' }}",
+              "type": "string"
+            },
+            {
+              "id": "f15b0ae6-f797-502b-ba22-969f5ba3794e",
+              "name": "istituzione_conservatrice",
+              "value": "Internet Archive",
+              "type": "string"
+            },
+            {
+              "id": "975831c5-28dc-5bf0-991f-93b1ec8ee556",
+              "name": "licenza",
+              "value": "={{ $json.licenseurl || [].concat($json.rights || 'da verificare')[0] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "99f881ed-c71c-574b-b6fd-e4f294b58066",
+      "name": "Scheda da Internet Archive",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1300,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.europeana.eu/record/v2/search.json",
+        "options": {
+          "timeout": 120000
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "wskey",
+              "value": "={{ $json.chiave_europeana }}"
+            },
+            {
+              "name": "query",
+              "value": "={{ $json.ricerca }}"
+            },
+            {
+              "name": "reusability",
+              "value": "open"
+            },
+            {
+              "name": "rows",
+              "value": "={{ $json.massimo_risultati }}"
+            },
+            {
+              "name": "media",
+              "value": "true"
+            }
+          ]
+        }
+      },
+      "id": "7d1d9626-f0cc-5ed4-aa55-f7c1571bad43",
+      "name": "Europeana (ricerca)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        780,
+        200
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "items",
+        "options": {}
+      },
+      "id": "40946cff-8dbd-5c48-a393-46bacac431f9",
+      "name": "Risultati Europeana",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5527288e-e4de-55fb-bed6-f63c9e51d040",
+              "name": "titolo",
+              "value": "={{ [].concat($json.title || '')[0] }}",
+              "type": "string"
+            },
+            {
+              "id": "bc31f54c-e99b-58cf-b45e-15ec276f94c9",
+              "name": "autore",
+              "value": "={{ [].concat($json.dcCreator || '').join('; ') }}",
+              "type": "string"
+            },
+            {
+              "id": "3f784f5a-2cc4-5604-a5fd-8b691ed5fe38",
+              "name": "data_documento",
+              "value": "={{ [].concat($json.year || '')[0] }}",
+              "type": "string"
+            },
+            {
+              "id": "d110da0b-a546-514a-9b10-2424629a4104",
+              "name": "url_o_percorso",
+              "value": "={{ [].concat($json.edmIsShownAt || $json.guid || '')[0] }}",
+              "type": "string"
+            },
+            {
+              "id": "bc4e9306-01e6-526b-87f3-7ad795077c77",
+              "name": "istituzione_conservatrice",
+              "value": "={{ [].concat($json.dataProvider || '')[0] }}",
+              "type": "string"
+            },
+            {
+              "id": "509418f9-e450-5443-83e9-be712bbffd94",
+              "name": "licenza",
+              "value": "={{ [].concat($json.rights || 'da verificare')[0] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a6b6cce0-57d0-5167-a781-932dd50ec9ef",
+      "name": "Scheda da Europeana",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "8b860071-55cc-55b7-bfdc-c1f5d62bf82b",
+      "name": "Una scheda alla volta",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1560,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://nocodb:8080/api/v2/tables/__TBL_corpus_documenti__/records",
+        "options": {
+          "timeout": 120000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "limit",
+              "value": "1"
+            },
+            {
+              "name": "where",
+              "value": "(doc_id,notblank)"
+            },
+            {
+              "name": "sort",
+              "value": "-doc_id"
+            },
+            {
+              "name": "fields",
+              "value": "doc_id"
+            }
+          ]
+        }
+      },
+      "id": "367ea79a-8642-54d6-b228-3b289525131a",
+      "name": "Trova l'ultimo doc_id",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1820,
+        200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "labCredNocoDB0001",
+          "name": "NocoDB · registri"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://nocodb:8080/api/v2/tables/__TBL_corpus_documenti__/records",
+        "options": {
+          "timeout": 120000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(Object.assign({}, $('Una scheda alla volta').item.json, { doc_id: 'D' + String((($json.list && $json.list[0] && parseInt(String($json.list[0].doc_id).slice(1), 10)) || 0) + 1).padStart(4, '0'), provenienza: 'api', stato: 'da_acquisire', note: 'Scheda creata da WF03 (' + $('PARAMETRI').first().json.fonte + '). Licenza e pertinenza da verificare.' })) }}"
+      },
+      "id": "dd77671c-c27a-5c64-835f-e42d6b557849",
+      "name": "Crea la scheda nel registro",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2080,
+        200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "labCredNocoDB0001",
+          "name": "NocoDB · registri"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "152a3997-de00-59ac-9081-2aaae850511a",
+              "name": "messaggio",
+              "value": "={{ 'Il passaggio «' + $prevNode.name + '» non è riuscito. Nessun record è stato lasciato a metà. Controlla che il pannello del laboratorio sia tutto verde e riesegui il workflow. Dettaglio tecnico: ' + (typeof $json.error === 'string' ? $json.error : (($json.error && $json.error.message) || JSON.stringify($json).slice(0, 300))) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "5afd63bc-0970-57e8-8594-23439231e9d6",
+      "name": "Spiega l'errore",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1820,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "errorMessage": "={{ $json.messaggio }}"
+      },
+      "id": "5399f87d-c8f3-5e69-8411-d044e69c7ab7",
+      "name": "Ferma con messaggio",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        2080,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Ramo d'errore: se un passaggio non riesce, il workflow si ferma con un messaggio in italiano e non lascia record a metà. Leggi il messaggio nella lista delle esecuzioni.",
+        "height": 120,
+        "width": 520,
+        "color": 7
+      },
+      "id": "dd805608-b9e7-5bf6-b6d4-a682b9a3393a",
+      "name": "Nota · errori",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1780,
+        450
+      ]
+    }
+  ],
+  "connections": {
+    "Avvia a mano": {
+      "main": [
+        [
+          {
+            "node": "PARAMETRI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PARAMETRI": {
+      "main": [
+        [
+          {
+            "node": "Scegli la fonte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scegli la fonte": {
+      "main": [
+        [
+          {
+            "node": "Wikidata (SPARQL)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Internet Archive (ricerca)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Europeana (ricerca)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wikidata (SPARQL)": {
+      "main": [
+        [
+          {
+            "node": "Risultati Wikidata",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Spiega l'errore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Risultati Wikidata": {
+      "main": [
+        [
+          {
+            "node": "Scheda da Wikidata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scheda da Wikidata": {
+      "main": [
+        [
+          {
+            "node": "Una scheda alla volta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Internet Archive (ricerca)": {
+      "main": [
+        [
+          {
+            "node": "Risultati Internet Archive",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Spiega l'errore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Risultati Internet Archive": {
+      "main": [
+        [
+          {
+            "node": "Scheda da Internet Archive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scheda da Internet Archive": {
+      "main": [
+        [
+          {
+            "node": "Una scheda alla volta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Europeana (ricerca)": {
+      "main": [
+        [
+          {
+            "node": "Risultati Europeana",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Spiega l'errore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Risultati Europeana": {
+      "main": [
+        [
+          {
+            "node": "Scheda da Europeana",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scheda da Europeana": {
+      "main": [
+        [
+          {
+            "node": "Una scheda alla volta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Una scheda alla volta": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Trova l'ultimo doc_id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trova l'ultimo doc_id": {
+      "main": [
+        [
+          {
+            "node": "Crea la scheda nel registro",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Spiega l'errore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crea la scheda nel registro": {
+      "main": [
+        [
+          {
+            "node": "Una scheda alla volta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Spiega l'errore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Spiega l'errore": {
+      "main": [
+        [
+          {
+            "node": "Ferma con messaggio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "pinData": {},
+  "tags": [],
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "laboratorio": "kit 0.1.0"
+  }
+}

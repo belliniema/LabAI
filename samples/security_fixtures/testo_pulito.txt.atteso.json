@@ -1,0 +1,7 @@
+{
+  "file": "testo_pulito.txt",
+  "descrizione": "Controllo: testo senza elementi sospetti",
+  "richiede_tika": false,
+  "segnalazioni_attese": [],
+  "nota": "Fixture didattica del Laboratorio di IA per la ricerca storica: testo inventato, nessuna persona reale."
+}

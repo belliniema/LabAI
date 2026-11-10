@@ -1,0 +1,345 @@
+{
+  "id": "labWF09registro0",
+  "name": "WF09 · Registro uso IA",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Che cosa fa\nSottoworkflow richiamato dagli altri workflow a ogni chiamata a un modello: scrive un evento in `uso_ia` con modello, digest, parametri, prompt e versione, documenti coinvolti ed esecuzione n8n.\n\n## Input\nI campi passati dal workflow chiamante.\n\n## Output\nUna riga in `uso_ia`.\n\n## Che cosa puoi modificare\nNiente: questo workflow non si modifica. PARAMETRI contiene solo l'indirizzo di Ollama.\n\n## Rischi e limiti\nSe Ollama non risponde, il digest risulta «non disponibile» ma l'evento viene registrato lo stesso.",
+        "height": 420,
+        "width": 760,
+        "color": 4
+      },
+      "id": "ecfa1a62-d678-590a-a6f8-c25c9b4a2935",
+      "name": "Nota del workflow",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -460
+      ]
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "workflow"
+            },
+            {
+              "name": "nodo"
+            },
+            {
+              "name": "modello"
+            },
+            {
+              "name": "parametri"
+            },
+            {
+              "name": "prompt_id"
+            },
+            {
+              "name": "prompt_versione"
+            },
+            {
+              "name": "doc_id_coinvolti"
+            },
+            {
+              "name": "n8n_execution_id"
+            }
+          ]
+        }
+      },
+      "id": "43c8f58a-1e03-5b51-99e0-fc533d75b5ce",
+      "name": "Chiamata da un altro workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f8affa6a-bc5e-5fd7-a810-27437a49c34b",
+              "name": "indirizzo_ollama",
+              "value": "http://host.docker.internal:11434",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {},
+        "includeOtherFields": true
+      },
+      "id": "9d349643-0525-5935-a2c0-85f4ecde02c6",
+      "name": "PARAMETRI",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        260,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.indirizzo_ollama }}/api/tags",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "5356b6af-158b-5a92-b6f7-336b2c783f27",
+      "name": "Digest dei modelli",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        520,
+        0
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "0c9c332b-10b6-56e0-838f-8cc4d16a1269",
+              "name": "evento_id",
+              "value": "={{ 'E' + $now.toFormat('yyMMddHHmmssSSS') }}",
+              "type": "string"
+            },
+            {
+              "id": "72a8d499-a78e-52af-a9e6-9c9d7d1f5609",
+              "name": "workflow",
+              "value": "={{ $('PARAMETRI').item.json.workflow }}",
+              "type": "string"
+            },
+            {
+              "id": "8003ed6b-c8c9-51b1-ba50-4e689ad01098",
+              "name": "nodo",
+              "value": "={{ $('PARAMETRI').item.json.nodo }}",
+              "type": "string"
+            },
+            {
+              "id": "84d29bdc-127b-5f9a-adc6-cdbb0df3bfbd",
+              "name": "modello",
+              "value": "={{ $('PARAMETRI').item.json.modello }}",
+              "type": "string"
+            },
+            {
+              "id": "0c7e9e38-914d-5bad-a477-c8bdd51b8f81",
+              "name": "digest_modello",
+              "value": "={{ (($json.models || []).find(m => m.name === $('PARAMETRI').item.json.modello || m.name === $('PARAMETRI').item.json.modello + ':latest') || {}).digest || 'non disponibile' }}",
+              "type": "string"
+            },
+            {
+              "id": "80a45386-bfb9-556c-acba-095a66ca34cc",
+              "name": "parametri",
+              "value": "={{ $('PARAMETRI').item.json.parametri }}",
+              "type": "string"
+            },
+            {
+              "id": "06929389-dc49-527a-84af-d5b3968c36c9",
+              "name": "prompt_id",
+              "value": "={{ $('PARAMETRI').item.json.prompt_id }}",
+              "type": "string"
+            },
+            {
+              "id": "01bda55b-f1fc-5207-a1d4-198c4f52081b",
+              "name": "prompt_versione",
+              "value": "={{ $('PARAMETRI').item.json.prompt_versione }}",
+              "type": "string"
+            },
+            {
+              "id": "0501b32b-de6a-5395-9035-55468a19ca12",
+              "name": "doc_id_coinvolti",
+              "value": "={{ $('PARAMETRI').item.json.doc_id_coinvolti }}",
+              "type": "string"
+            },
+            {
+              "id": "f88f7e54-c78e-5760-b337-818fb28bb3fa",
+              "name": "n8n_execution_id",
+              "value": "={{ $('PARAMETRI').item.json.n8n_execution_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "33053de7-bd69-5afe-843d-4b6d336eb1e0",
+      "name": "Prepara l'evento",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        780,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://nocodb:8080/api/v2/tables/__TBL_uso_ia__/records",
+        "options": {
+          "timeout": 120000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "1f311e62-3050-58fb-8a09-4fae8c08889c",
+      "name": "Scrivi in uso_ia",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1040,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "labCredNocoDB0001",
+          "name": "NocoDB · registri"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b05439c7-c443-5785-b97f-7b1d8ce68e7b",
+              "name": "messaggio",
+              "value": "={{ 'Il passaggio «' + $prevNode.name + '» non è riuscito. Nessun record è stato lasciato a metà. Controlla che il pannello del laboratorio sia tutto verde e riesegui il workflow. Dettaglio tecnico: ' + (typeof $json.error === 'string' ? $json.error : (($json.error && $json.error.message) || JSON.stringify($json).slice(0, 300))) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2e1e150e-dedb-5d97-be3c-1f024c7ddc7a",
+      "name": "Spiega l'errore",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1040,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "errorMessage": "={{ $json.messaggio }}"
+      },
+      "id": "3db04c44-104c-5a4d-8b7d-26a2360d3ff2",
+      "name": "Ferma con messaggio",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Ramo d'errore: se un passaggio non riesce, il workflow si ferma con un messaggio in italiano e non lascia record a metà. Leggi il messaggio nella lista delle esecuzioni.",
+        "height": 120,
+        "width": 520,
+        "color": 7
+      },
+      "id": "1ca8cba7-52e2-51a7-adfc-7f178c60d944",
+      "name": "Nota · errori",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        250
+      ]
+    }
+  ],
+  "connections": {
+    "Chiamata da un altro workflow": {
+      "main": [
+        [
+          {
+            "node": "PARAMETRI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PARAMETRI": {
+      "main": [
+        [
+          {
+            "node": "Digest dei modelli",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Digest dei modelli": {
+      "main": [
+        [
+          {
+            "node": "Prepara l'evento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepara l'evento": {
+      "main": [
+        [
+          {
+            "node": "Scrivi in uso_ia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Spiega l'errore": {
+      "main": [
+        [
+          {
+            "node": "Ferma con messaggio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrivi in uso_ia": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Spiega l'errore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "pinData": {},
+  "tags": [],
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "laboratorio": "kit 0.1.0"
+  }
+}

@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>08 · Backup e Diagnostica</title>
+<style>
+:root { --sfondo:#f6f4ef; --carta:#fff; --testo:#1f2328; --tenue:#5b6168; --bordo:#dcd8cf; --accento:#7a2e1d; --accento-chiaro:#f3e3dc; }
+@media (prefers-color-scheme: dark) { :root { --sfondo:#16181b; --carta:#1f2226; --testo:#e8e6e1; --tenue:#a3a8ae; --bordo:#33373d; --accento:#e5a48f; --accento-chiaro:#3a2620; } }
+body { margin:0; background:var(--sfondo); color:var(--testo); font:17px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+main { max-width:820px; margin:0 auto; padding:24px 16px 64px; }
+h1 { font-family:Georgia,serif; font-weight:600; } h2 { margin-top:2em; }
+a { color:var(--accento); } code { background:var(--accento-chiaro); padding:1px 5px; border-radius:4px; font-size:.9em; }
+table { border-collapse:collapse; width:100%; margin:1em 0; background:var(--carta); display:block; overflow-x:auto; }
+th,td { border:1px solid var(--bordo); padding:6px 10px; text-align:left; vertical-align:top; }
+blockquote { margin:1em 0; padding:10px 16px; border-left:4px solid var(--accento); background:var(--accento-chiaro); border-radius:6px; }
+.schermata { border:2px dashed var(--bordo); color:var(--tenue); padding:18px; border-radius:8px; text-align:center; font-size:.9em; background:var(--carta); }
+nav { font-size:.9em; }
+</style></head><body><main>
+<nav><a href="../index.html">← Pannello</a> · <a href="index.html">Tutte le schede</a></nav>
+<h1>08 · Backup e Diagnostica</h1>
+<p><strong>Obiettivo.</strong> Mettere al sicuro il lavoro e chiedere aiuto in modo efficace.</p>
+<h2>Backup</h2>
+<ol><li>Fai doppio clic su <strong>Backup</strong>. Il laboratorio si ferma per qualche minuto, copia registri, workflow, grafo e la cartella <code>dati</code>, poi riparte.</li><li>Il backup è in <code>dati/dossier/backup/backup-&lt;data&gt;</code>.</li><li><strong>Copia quella cartella fuori dal computer</strong> (disco esterno o cloud di ateneo): un backup sullo stesso disco non protegge da un guasto.</li><li>Il backup contiene <code>segreti.env</code> (le tue chiavi locali): tienilo privato.</li></ol>
+<p>Fai un backup almeno a ogni checkpoint (L9, L14, L16) e prima dell'appello. Consiglio: attiva la cifratura del disco (BitLocker su Windows, FileVault su Mac).</p>
+<p><strong>Ripristino</strong> (su un computer nuovo o dopo un guasto): porta la cartella del backup allo sportello o segui con il tutor <code>docs/docente/assistenza.md</code>.</p>
+<h2>Diagnostica</h2>
+<ol><li>Fai doppio clic su <strong>Diagnostica</strong>.</li><li>Sul Desktop compare <strong>Diagnostica-&lt;data&gt;.zip</strong>: contiene versioni, stato dei servizi e messaggi di errore, <strong>senza password né chiavi</strong> (vengono sostituite da <code>[RIMOSSO]</code>).</li><li>Allegalo nel forum del corso con una frase su che cosa stavi facendo.</li></ol>
+<blockquote><strong>Domanda di riflessione.</strong> La riproducibilità di un progetto dipende anche dalla conservazione dei dati. Che cosa resterebbe verificabile del tuo lavoro se perdessi il computer domani?</blockquote>
+</main></body></html>

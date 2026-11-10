@@ -1,0 +1,475 @@
+{
+  "id": "labWF00chatprova",
+  "name": "WF00 · Chat di prova",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Che cosa fa\nChat diretta con il modello locale (Ollama), senza corpus e senza grafo. Serve in L1 e L3 per osservare come cambia la risposta con la temperatura e con modelli di taglia diversa.\n\n## Input\nUna domanda scritta nel modulo che si apre con «Execute workflow».\n\n## Output\nLa risposta del modello nella pagina del modulo; un evento nel registro uso_ia.\n\n## Che cosa puoi modificare\nSolo il nodo PARAMETRI: `modello` (es. lab-risposta, qwen3.5:2b) e `temperatura` (0 = più ripetitivo, 1 = più vario).\n\n## Rischi e limiti\nIl modello risponde senza fonti: può inventare. Non scrive nel corpus. Un modello non scaricato in Ollama dà errore.",
+        "height": 420,
+        "width": 760,
+        "color": 4
+      },
+      "id": "1b8b2d67-c483-5edc-a770-eed3742a680d",
+      "name": "Nota del workflow",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -460
+      ]
+    },
+    {
+      "parameters": {
+        "formTitle": "Chat di prova",
+        "formDescription": "Scrivi una domanda per il modello locale.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Domanda",
+              "fieldType": "textarea",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9230b302-4ba3-5b89-88ee-7e4913d48e30",
+      "name": "Modulo della domanda",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "b494dd8a-d410-5832-990f-8920da8c4507"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "63c7be48-9d49-5c43-8c53-78e38cff8bb8",
+              "name": "modello",
+              "value": "lab-risposta",
+              "type": "string"
+            },
+            {
+              "id": "288bab18-1161-50c0-92f4-54cd8e35a8b1",
+              "name": "temperatura",
+              "value": 0.7,
+              "type": "number"
+            },
+            {
+              "id": "c1857d84-8201-50c7-8b02-16b41fc41b47",
+              "name": "file_prompt",
+              "value": "chat_di_prova.md",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ffc2a5d5-f275-5f6b-97fb-7e04c68248d3",
+      "name": "PARAMETRI",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        260,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "fileSelector": "=/kit-prompts/{{ $json.file_prompt }}",
+        "options": {}
+      },
+      "id": "4613c269-f65b-5e84-8b94-dcfc0eda22d7",
+      "name": "Leggi il prompt",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        520,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "destinationKey": "testo",
+        "options": {}
+      },
+      "id": "1999623c-af7b-5834-ac94-d97b19e451f3",
+      "name": "Testo del prompt",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        780,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "aeaa95c4-b218-52db-9212-59881d1a76aa",
+              "name": "prompt_id",
+              "value": "={{ ($json.testo.match(/^id:\\s*(\\S+)/m) || [])[1] }}",
+              "type": "string"
+            },
+            {
+              "id": "b03890b7-e6f9-5f18-a87e-4a23328b67c3",
+              "name": "prompt_versione",
+              "value": "={{ ($json.testo.match(/^versione:\\s*(\\S+)/m) || [])[1] }}",
+              "type": "string"
+            },
+            {
+              "id": "85a985ca-185b-5374-9b27-1e74695c5fd2",
+              "name": "prompt_testo",
+              "value": "={{ $json.testo.split(/^---\\s*$/m).slice(2).join('---').trim() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "224e6c2f-4e66-5075-9732-6f61c70eef5a",
+      "name": "Prompt pronto",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1040,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/chat",
+        "options": {
+          "timeout": 600000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: $('PARAMETRI').first().json.modello, stream: false, think: false, options: { temperature: $('PARAMETRI').first().json.temperatura }, messages: [{ role: 'system', content: $json.prompt_testo }, { role: 'user', content: $('Modulo della domanda').first().json.Domanda } ] }) }}"
+      },
+      "id": "09c56418-81c2-5eee-b2f5-357a76497aa1",
+      "name": "Chiedi al modello",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1300,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "labWF09registro0",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "workflow": "WF00 · Chat di prova",
+            "nodo": "Chiedi al modello",
+            "modello": "={{ $('PARAMETRI').first().json.modello }}",
+            "parametri": "={{ JSON.stringify({ temperatura: $('PARAMETRI').first().json.temperatura, think: false }) }}",
+            "prompt_id": "={{ $('Prompt pronto').first().json.prompt_id }}",
+            "prompt_versione": "={{ $('Prompt pronto').first().json.prompt_versione }}",
+            "doc_id_coinvolti": "",
+            "n8n_execution_id": "={{ $execution.id }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "workflow",
+              "displayName": "workflow",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "nodo",
+              "displayName": "nodo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "modello",
+              "displayName": "modello",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "parametri",
+              "displayName": "parametri",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "prompt_id",
+              "displayName": "prompt_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "prompt_versione",
+              "displayName": "prompt_versione",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "doc_id_coinvolti",
+              "displayName": "doc_id_coinvolti",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "n8n_execution_id",
+              "displayName": "n8n_execution_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "7b04701a-236a-58ae-9741-3af02e7756de",
+      "name": "Registra uso IA",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1560,
+        0
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "completion",
+        "respondWith": "showText",
+        "responseText": "={{ 'MODELLO: ' + $('PARAMETRI').first().json.modello + ' · TEMPERATURA: ' + $('PARAMETRI').first().json.temperatura + '\\n\\n' + $('Chiedi al modello').first().json.message.content }}",
+        "options": {}
+      },
+      "id": "811d69d9-83f8-5934-b484-87927e87f169",
+      "name": "Mostra la risposta",
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 1,
+      "position": [
+        1820,
+        0
+      ],
+      "webhookId": "1b85eaf4-58ad-5e88-bcaf-9d2b376ca925"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a823b200-b65d-57a6-b901-ff4fd43a2afe",
+              "name": "messaggio",
+              "value": "={{ 'Il passaggio «' + $prevNode.name + '» non è riuscito. Nessun record è stato lasciato a metà. Controlla che il pannello del laboratorio sia tutto verde e riesegui il workflow. Dettaglio tecnico: ' + (typeof $json.error === 'string' ? $json.error : (($json.error && $json.error.message) || JSON.stringify($json).slice(0, 300))) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d6f4d34c-a96f-59b9-8baa-bce537b9a933",
+      "name": "Spiega l'errore",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1300,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "errorMessage": "={{ $json.messaggio }}"
+      },
+      "id": "be99495e-cc9a-50c4-809e-9e6d5d28e3aa",
+      "name": "Ferma con messaggio",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        1560,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Ramo d'errore: se un passaggio non riesce, il workflow si ferma con un messaggio in italiano e non lascia record a metà. Leggi il messaggio nella lista delle esecuzioni.",
+        "height": 120,
+        "width": 520,
+        "color": 7
+      },
+      "id": "655c835b-04d8-5fd4-aad7-49fe9b6dc75f",
+      "name": "Nota · errori",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1260,
+        250
+      ]
+    }
+  ],
+  "connections": {
+    "Leggi il prompt": {
+      "main": [
+        [
+          {
+            "node": "Testo del prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Spiega l'errore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Testo del prompt": {
+      "main": [
+        [
+          {
+            "node": "Prompt pronto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Modulo della domanda": {
+      "main": [
+        [
+          {
+            "node": "PARAMETRI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PARAMETRI": {
+      "main": [
+        [
+          {
+            "node": "Leggi il prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prompt pronto": {
+      "main": [
+        [
+          {
+            "node": "Chiedi al modello",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chiedi al modello": {
+      "main": [
+        [
+          {
+            "node": "Registra uso IA",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Spiega l'errore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registra uso IA": {
+      "main": [
+        [
+          {
+            "node": "Mostra la risposta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Spiega l'errore": {
+      "main": [
+        [
+          {
+            "node": "Ferma con messaggio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "pinData": {},
+  "tags": [],
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "laboratorio": "kit 0.1.0"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "file": "testo_zero_width.txt",
+  "descrizione": "Testo con caratteri zero-width e un messaggio in caratteri tag Unicode",
+  "richiede_tika": false,
+  "segnalazioni_attese": [
+    {
+      "tipo": "carattere_invisibile",
+      "contiene": "zero-width"
+    },
+    {
+      "tipo": "carattere_invisibile",
+      "contiene": "CANARINO-42"
+    }
+  ],
+  "nota": "Fixture didattica del Laboratorio di IA per la ricerca storica: testo inventato, nessuna persona reale."
+}
