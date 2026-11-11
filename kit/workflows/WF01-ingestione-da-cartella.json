@@ -4,7 +4,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Che cosa fa\nLegge i file nella cartella `inbox`, ne estrae testo e metadati con Apache Tika (con OCR per le scansioni), salva il testo in `testi/<doc_id>.txt`, calcola l'impronta SHA-256 e crea il record nel registro del corpus con stato `acquisito`. I duplicati (stessa impronta) vengono saltati.\n\n## Input\nI file che hai trascinato in `LaboratorioIA/dati/inbox`.\n\n## Output\nUn file di testo per documento in `testi/` e un record in `corpus_documenti`.\n\n## Che cosa puoi modificare\nSolo PARAMETRI: `lingua_ocr` (es. ita+eng, ita+lat) e `licenza_predefinita`.\n\n## Rischi e limiti\nL'OCR sbaglia: controlla il testo a campione e compila `qualita_ocr`. Il titolo è provvisorio (nome del file o metadato): correggilo in NocoDB. File grandi o scansioni lunghe richiedono minuti.",
+        "content": "## Che cosa fa\nLegge i file nella cartella `inbox`, ne estrae testo e metadati con Apache Tika (con OCR per le scansioni), salva il testo in `testi/<doc_id>.txt`, calcola l'impronta SHA-256 e crea il record nel registro del corpus con stato `acquisito`. I duplicati (stessa impronta) vengono saltati. Per PDF e immagini puoi usare Docling, che ricostruisce colonne e tabelle delle scansioni (ADR-006).\n\n## Input\nI file che hai trascinato in `LaboratorioIA/dati/inbox`.\n\n## Output\nUn file di testo per documento in `testi/` e un record in `corpus_documenti`; in `note` il motore usato.\n\n## Che cosa puoi modificare\nSolo PARAMETRI: `lingua_ocr` (es. ita+eng, ita+lat), `licenza_predefinita` e `motore_pdf_e_immagini` (`tika` oppure `docling`: prima attiva Docling dal pannello).\n\n## Rischi e limiti\nL'OCR sbaglia: controlla il testo a campione e compila `qualita_ocr`. Il titolo è provvisorio (nome del file o metadato): correggilo in NocoDB. File grandi o scansioni lunghe richiedono minuti (Docling circa 3 secondi a pagina): tieni il computer collegato e non chiudere il coperchio. Se Docling è spento WF01 usa Tika e lo scrive in `note`.",
         "height": 420,
         "width": 760,
         "color": 4
@@ -50,12 +50,18 @@
               "name": "licenza_predefinita",
               "value": "da verificare",
               "type": "string"
+            },
+            {
+              "id": "9e645851-e8d3-5b35-a676-edb2b70609c6",
+              "name": "motore_pdf_e_immagini",
+              "value": "tika",
+              "type": "string"
             }
           ]
         },
         "options": {}
       },
-      "id": "9e645851-e8d3-5b35-a676-edb2b70609c6",
+      "id": "0ecbcd8c-4f82-5078-afb9-2816ed217e4b",
       "name": "PARAMETRI",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -71,7 +77,7 @@
         "width": 520,
         "color": 7
       },
-      "id": "0ecbcd8c-4f82-5078-afb9-2816ed217e4b",
+      "id": "7346a48a-917a-5f24-8b84-8ae24fff404d",
       "name": "Nota · lettura",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
@@ -85,7 +91,7 @@
         "fileSelector": "={{ $json.cartella_inbox }}/*",
         "options": {}
       },
-      "id": "7346a48a-917a-5f24-8b84-8ae24fff404d",
+      "id": "598ff0d3-4137-5b69-8cd2-015bf6b92abc",
       "name": "Leggi i file della cartella",
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1,
@@ -100,7 +106,7 @@
         "batchSize": 1,
         "options": {}
       },
-      "id": "598ff0d3-4137-5b69-8cd2-015bf6b92abc",
+      "id": "d7d4492c-5ca2-5a68-89cf-e6dbb7293292",
       "name": "Un documento alla volta",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
@@ -116,7 +122,7 @@
         "width": 520,
         "color": 7
       },
-      "id": "d7d4492c-5ca2-5a68-89cf-e6dbb7293292",
+      "id": "9d7a9d19-77b2-5b14-a2b2-c9945ceff2db",
       "name": "Nota · duplicati",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
@@ -134,7 +140,7 @@
         "dataPropertyName": "hash_sha256",
         "encoding": "hex"
       },
-      "id": "9d7a9d19-77b2-5b14-a2b2-c9945ceff2db",
+      "id": "5aadd429-7685-5fc8-a109-b575fe58e828",
       "name": "Calcola l'impronta",
       "type": "n8n-nodes-base.crypto",
       "typeVersion": 2,
@@ -170,7 +176,7 @@
           ]
         }
       },
-      "id": "5aadd429-7685-5fc8-a109-b575fe58e828",
+      "id": "ae6a746b-f7de-5813-85a2-cd9f2580cf2a",
       "name": "Cerca un duplicato",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -197,7 +203,7 @@
           },
           "conditions": [
             {
-              "id": "ae6a746b-f7de-5813-85a2-cd9f2580cf2a",
+              "id": "d6ae57dc-9897-59e3-9478-127cffc17640",
               "leftValue": "={{ ($json.list || []).length }}",
               "operator": {
                 "type": "number",
@@ -210,7 +216,7 @@
         },
         "options": {}
       },
-      "id": "d6ae57dc-9897-59e3-9478-127cffc17640",
+      "id": "5240a796-39cc-5fb6-a425-ae24bc58451a",
       "name": "È un documento nuovo?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -224,7 +230,7 @@
         "assignments": {
           "assignments": [
             {
-              "id": "5240a796-39cc-5fb6-a425-ae24bc58451a",
+              "id": "aa2e51be-7bb7-5cc9-b57c-14982bfaf642",
               "name": "messaggio",
               "value": "={{ 'Saltato: ' + $('Calcola l\\'impronta').item.json.fileName + ' è già nel registro.' }}",
               "type": "string"
@@ -233,7 +239,7 @@
         },
         "options": {}
       },
-      "id": "aa2e51be-7bb7-5cc9-b57c-14982bfaf642",
+      "id": "eb4135cb-c1e9-52db-ac1f-176375f94a25",
       "name": "Segnala il duplicato",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -249,7 +255,7 @@
         "width": 780,
         "color": 7
       },
-      "id": "eb4135cb-c1e9-52db-ac1f-176375f94a25",
+      "id": "d10c17ea-4791-52b1-98e9-1f3ddb93336c",
       "name": "Nota · estrazione",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
@@ -263,7 +269,7 @@
         "fileSelector": "={{ $('PARAMETRI').first().json.cartella_inbox }}/{{ $('Calcola l\\'impronta').item.json.fileName }}",
         "options": {}
       },
-      "id": "d10c17ea-4791-52b1-98e9-1f3ddb93336c",
+      "id": "7d969e56-5269-537d-a1b2-b8b14f28938a",
       "name": "Rileggi il file",
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1,
@@ -307,7 +313,7 @@
         "contentType": "binaryData",
         "inputDataFieldName": "data"
       },
-      "id": "7d969e56-5269-537d-a1b2-b8b14f28938a",
+      "id": "6bd39f44-d2f6-5e4a-b670-c8fbc4bfce89",
       "name": "Estrai testo e metadati (Tika)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -322,7 +328,7 @@
         "assignments": {
           "assignments": [
             {
-              "id": "6bd39f44-d2f6-5e4a-b670-c8fbc4bfce89",
+              "id": "01b112a6-c742-55a6-bafa-daeef7f70be7",
               "name": "meta",
               "value": "={{ JSON.parse($json.tika)[0] }}",
               "type": "object"
@@ -331,12 +337,232 @@
         },
         "options": {}
       },
-      "id": "01b112a6-c742-55a6-bafa-daeef7f70be7",
+      "id": "3fdcf489-f58c-5c19-90cf-29e7b8350a88",
       "name": "Leggi i metadati",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
         2340,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Con `motore_pdf_e_immagini` = `docling` i PDF e le immagini passano da Docling (impaginazione, tabelle, OCR RapidOCR). Se Docling è spento resta il testo di Tika.",
+        "height": 120,
+        "width": 1040,
+        "color": 7
+      },
+      "id": "446d2ece-9807-5301-bcfd-d84b59f60d8e",
+      "name": "Nota · Docling",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2560,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "f4f564b4-cd9a-5e9b-8ce2-c1226b2f559a",
+              "leftValue": "={{ $('PARAMETRI').first().json.motore_pdf_e_immagini === 'docling' && /^(image\\/|application\\/pdf)/.test($('Calcola l\\'impronta').item.json.mimeType) }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "14095d91-5901-56c0-b0b6-3ad7c0fcd904",
+      "name": "Usa Docling?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2600,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "739bc6ab-e287-580b-a2c0-59e3a22e175f",
+              "name": "testo_estratto",
+              "value": "={{ ($('Leggi i metadati').item.json.meta['X-TIKA:content'] || '').trim() }}",
+              "type": "string"
+            },
+            {
+              "id": "7cc5f70b-554e-5951-bf38-23838d42c3e2",
+              "name": "nota_estrazione",
+              "value": "Testo estratto con Tika.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "83f614b0-f912-5996-b9ab-6892db360f7e",
+      "name": "Testo da Tika",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3120,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "fileSelector": "={{ $('PARAMETRI').first().json.cartella_inbox }}/{{ $('Calcola l\\'impronta').item.json.fileName }}",
+        "options": {}
+      },
+      "id": "d3b176a9-4630-56c2-86d8-191f5f9c95b6",
+      "name": "Rileggi il file per Docling",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        2860,
+        400
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://docling:5001/v1/convert/file",
+        "options": {
+          "timeout": 1800000
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "files",
+              "inputDataFieldName": "data"
+            },
+            {
+              "name": "to_formats",
+              "value": "md"
+            },
+            {
+              "name": "do_ocr",
+              "value": "true"
+            },
+            {
+              "name": "force_ocr",
+              "value": "false"
+            },
+            {
+              "name": "ocr_preset",
+              "value": "rapidocr"
+            },
+            {
+              "name": "ocr_lang",
+              "value": "={{ ({ ita: 'it', eng: 'en', lat: 'la', fra: 'fr', deu: 'de', spa: 'es' })[$('PARAMETRI').first().json.lingua_ocr.split('+')[0]] || 'it' }}"
+            },
+            {
+              "name": "image_export_mode",
+              "value": "placeholder"
+            },
+            {
+              "name": "table_mode",
+              "value": "accurate"
+            }
+          ]
+        }
+      },
+      "id": "8e765518-ecae-5d2d-9d14-999527d577b4",
+      "name": "Estrai il testo (Docling)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3120,
+        400
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "59f7ebce-2493-522c-80b4-6e250f8c93bc",
+              "name": "testo_estratto",
+              "value": "={{ (($json.document && $json.document.md_content) || '').trim() || ($('Leggi i metadati').item.json.meta['X-TIKA:content'] || '').trim() }}",
+              "type": "string"
+            },
+            {
+              "id": "69c17763-b953-5af1-80a8-bd9b288527a2",
+              "name": "nota_estrazione",
+              "value": "={{ (($json.document && $json.document.md_content) || '').trim() ? 'Testo estratto con Docling (RapidOCR, Markdown).' : 'Docling non ha restituito testo: testo estratto con Tika.' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ae8135f0-6ba8-5467-a631-3d187a362d6a",
+      "name": "Testo da Docling",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3380,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6560ab87-bc9e-52be-b659-0a24d2f9a25e",
+              "name": "testo_estratto",
+              "value": "={{ ($('Leggi i metadati').item.json.meta['X-TIKA:content'] || '').trim() }}",
+              "type": "string"
+            },
+            {
+              "id": "b7e7b369-7e2d-5561-9a9b-5b6ba6fd7cb9",
+              "name": "nota_estrazione",
+              "value": "Docling non ha risposto: testo estratto con Tika. Per rifarlo con Docling attivalo dal pannello, elimina questo record e riesegui WF01.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f5272d1e-e8d9-5bba-be40-a431fa333fae",
+      "name": "Docling non risponde: uso Tika",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3380,
+        600
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "f1b54019-38df-52e3-8006-a6c84387dcfe",
+      "name": "Testo scelto",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        3640,
         200
       ]
     },
@@ -371,12 +597,12 @@
           ]
         }
       },
-      "id": "3fdcf489-f58c-5c19-90cf-29e7b8350a88",
+      "id": "c9a0bc5e-550e-53aa-8727-c52206fff88f",
       "name": "Trova l'ultimo doc_id",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2600,
+        3900,
         200
       ],
       "credentials": {
@@ -392,93 +618,93 @@
         "assignments": {
           "assignments": [
             {
-              "id": "446d2ece-9807-5301-bcfd-d84b59f60d8e",
+              "id": "9d4cba86-82f9-5483-9886-878c8d97ef96",
               "name": "doc_id",
               "value": "={{ 'D' + String((($json.list && $json.list[0] && parseInt(String($json.list[0].doc_id).slice(1), 10)) || 0) + 1).padStart(4, '0') }}",
               "type": "string"
             },
             {
-              "id": "f4f564b4-cd9a-5e9b-8ce2-c1226b2f559a",
+              "id": "20ad3804-e7fe-5385-965a-ff55183d5dcd",
               "name": "titolo",
               "value": "={{ $('Leggi i metadati').item.json.meta['dc:title'] || $('Calcola l\\'impronta').item.json.fileName.replace(/\\.[^.]+$/, '') }}",
               "type": "string"
             },
             {
-              "id": "14095d91-5901-56c0-b0b6-3ad7c0fcd904",
+              "id": "39c5eca1-305d-5923-bfe1-30f927e17bb8",
               "name": "autore",
               "value": "={{ [].concat($('Leggi i metadati').item.json.meta['dc:creator'] || '').join('; ') }}",
               "type": "string"
             },
             {
-              "id": "739bc6ab-e287-580b-a2c0-59e3a22e175f",
+              "id": "89992e10-ce51-554e-ba88-a4d5cf5ae5b0",
               "name": "provenienza",
               "value": "locale",
               "type": "string"
             },
             {
-              "id": "7cc5f70b-554e-5951-bf38-23838d42c3e2",
+              "id": "21810c2e-ebf2-5b7f-9404-05a937a20a42",
               "name": "url_o_percorso",
               "value": "={{ 'inbox/' + $('Calcola l\\'impronta').item.json.fileName }}",
               "type": "string"
             },
             {
-              "id": "83f614b0-f912-5996-b9ab-6892db360f7e",
+              "id": "74f8f9cc-2aa3-5beb-90c4-215986b1986e",
               "name": "licenza",
               "value": "={{ $('PARAMETRI').first().json.licenza_predefinita }}",
               "type": "string"
             },
             {
-              "id": "d3b176a9-4630-56c2-86d8-191f5f9c95b6",
+              "id": "62d69c54-5e20-55c6-9e92-c79020153d08",
               "name": "data_acquisizione",
               "value": "={{ $now.toFormat('yyyy-MM-dd') }}",
               "type": "string"
             },
             {
-              "id": "8e765518-ecae-5d2d-9d14-999527d577b4",
+              "id": "f28c6b0c-2c4c-5007-a41a-5ae314ea0f10",
               "name": "hash_sha256",
               "value": "={{ $('Calcola l\\'impronta').item.json.hash_sha256 }}",
               "type": "string"
             },
             {
-              "id": "59f7ebce-2493-522c-80b4-6e250f8c93bc",
+              "id": "be7e1687-dac6-5191-8cc3-ddf4620afa72",
               "name": "lingua",
               "value": "={{ $('Leggi i metadati').item.json.meta['dc:language'] || '' }}",
               "type": "string"
             },
             {
-              "id": "69c17763-b953-5af1-80a8-bd9b288527a2",
+              "id": "d218d6b0-4e79-50ba-908b-46771ad5117b",
               "name": "qualita_ocr",
               "value": "={{ /^(image|application\\/pdf)/.test($('Calcola l\\'impronta').item.json.mimeType) ? null : 'non_applicabile' }}",
               "type": "string"
             },
             {
-              "id": "ae8135f0-6ba8-5467-a631-3d187a362d6a",
+              "id": "44ff7c94-3a9a-5a73-8e09-f24dd64dea30",
               "name": "stato",
               "value": "acquisito",
               "type": "string"
             },
             {
-              "id": "6560ab87-bc9e-52be-b659-0a24d2f9a25e",
+              "id": "19e29f54-ae6f-5b50-9ec2-a73cdcc0d799",
               "name": "note",
-              "value": "={{ 'Tipo di file: ' + $('Calcola l\\'impronta').item.json.mimeType + '. Titolo e autore provvisori, da controllare.' }}",
+              "value": "={{ 'Tipo di file: ' + $('Calcola l\\'impronta').item.json.mimeType + '. ' + $('Testo scelto').item.json.nota_estrazione + ' Titolo e autore provvisori, da controllare.' }}",
               "type": "string"
             },
             {
-              "id": "b7e7b369-7e2d-5561-9a9b-5b6ba6fd7cb9",
+              "id": "56d48110-ce9e-55b1-b61f-27348ba7656d",
               "name": "testo",
-              "value": "={{ ($('Leggi i metadati').item.json.meta['X-TIKA:content'] || '').trim() }}",
+              "value": "={{ $('Testo scelto').item.json.testo_estratto }}",
               "type": "string"
             }
           ]
         },
         "options": {}
       },
-      "id": "f5272d1e-e8d9-5bba-be40-a431fa333fae",
+      "id": "cabf22d6-b132-5c14-88ef-6e0b27b72bb0",
       "name": "Prepara il record",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        2860,
+        4160,
         200
       ]
     },
@@ -490,12 +716,12 @@
           "fileName": "={{ $json.doc_id }}.txt"
         }
       },
-      "id": "f1b54019-38df-52e3-8006-a6c84387dcfe",
+      "id": "8a3e68a6-abb7-5ca4-804d-d89883972d42",
       "name": "Testo in un file",
       "type": "n8n-nodes-base.convertToFile",
       "typeVersion": 1.1,
       "position": [
-        3120,
+        4420,
         200
       ]
     },
@@ -506,12 +732,12 @@
         "dataPropertyName": "data",
         "options": {}
       },
-      "id": "c9a0bc5e-550e-53aa-8727-c52206fff88f",
+      "id": "de97e810-e71f-5a99-a57a-d71f2bb78fb7",
       "name": "Salva il testo",
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1,
       "position": [
-        3380,
+        4680,
         200
       ],
       "onError": "continueErrorOutput"
@@ -529,12 +755,12 @@
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify(Object.fromEntries(Object.entries($('Prepara il record').item.json).filter(e => e[0] !== 'testo'))) }}"
       },
-      "id": "9d4cba86-82f9-5483-9886-878c8d97ef96",
+      "id": "4b7a33bb-75c4-5b1e-967f-37eadfe5b86a",
       "name": "Crea il record nel registro",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3640,
+        4940,
         200
       ],
       "credentials": {
@@ -550,7 +776,7 @@
         "assignments": {
           "assignments": [
             {
-              "id": "20ad3804-e7fe-5385-965a-ff55183d5dcd",
+              "id": "225656a9-0408-52b0-a788-c09d2a6e8e1d",
               "name": "messaggio",
               "value": "={{ 'Acquisito ' + $('Prepara il record').item.json.doc_id + ': ' + $('Prepara il record').item.json.titolo }}",
               "type": "string"
@@ -559,12 +785,12 @@
         },
         "options": {}
       },
-      "id": "39c5eca1-305d-5923-bfe1-30f927e17bb8",
+      "id": "a443bb43-c933-5c2a-a1f3-3f38e1a887fa",
       "name": "Documento acquisito",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        3900,
+        5200,
         200
       ]
     },
@@ -573,7 +799,7 @@
         "assignments": {
           "assignments": [
             {
-              "id": "89992e10-ce51-554e-ba88-a4d5cf5ae5b0",
+              "id": "662bdb90-bc49-5b0d-b7f6-034e42522e5e",
               "name": "messaggio",
               "value": "={{ 'Il passaggio «' + $prevNode.name + '» non è riuscito. Nessun record è stato lasciato a metà. Controlla che il pannello del laboratorio sia tutto verde e riesegui il workflow. Dettaglio tecnico: ' + (typeof $json.error === 'string' ? $json.error : (($json.error && $json.error.message) || JSON.stringify($json).slice(0, 300))) }}",
               "type": "string"
@@ -582,7 +808,7 @@
         },
         "options": {}
       },
-      "id": "21810c2e-ebf2-5b7f-9404-05a937a20a42",
+      "id": "b4efc02d-3706-54bc-8fb4-4bc05215b615",
       "name": "Spiega l'errore",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -595,7 +821,7 @@
       "parameters": {
         "errorMessage": "={{ $json.messaggio }}"
       },
-      "id": "74f8f9cc-2aa3-5beb-90c4-215986b1986e",
+      "id": "055a81d5-aed6-5892-a964-51bb09216ff3",
       "name": "Ferma con messaggio",
       "type": "n8n-nodes-base.stopAndError",
       "typeVersion": 1,
@@ -611,7 +837,7 @@
         "width": 520,
         "color": 7
       },
-      "id": "62d69c54-5e20-55c6-9e92-c79020153d08",
+      "id": "5ab229a8-9a43-545e-9cd7-331b9c23d61c",
       "name": "Nota · errori",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
@@ -769,6 +995,104 @@
       ]
     },
     "Leggi i metadati": {
+      "main": [
+        [
+          {
+            "node": "Usa Docling?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Usa Docling?": {
+      "main": [
+        [
+          {
+            "node": "Rileggi il file per Docling",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Testo da Tika",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rileggi il file per Docling": {
+      "main": [
+        [
+          {
+            "node": "Estrai il testo (Docling)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Spiega l'errore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Estrai il testo (Docling)": {
+      "main": [
+        [
+          {
+            "node": "Testo da Docling",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Docling non risponde: uso Tika",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Testo da Docling": {
+      "main": [
+        [
+          {
+            "node": "Testo scelto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Docling non risponde: uso Tika": {
+      "main": [
+        [
+          {
+            "node": "Testo scelto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Testo da Tika": {
+      "main": [
+        [
+          {
+            "node": "Testo scelto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Testo scelto": {
       "main": [
         [
           {

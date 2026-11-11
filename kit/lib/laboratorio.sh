@@ -14,6 +14,10 @@ OLLAMA="http://127.0.0.1:11434"
 PANNELLO="http://localhost:8000"
 PORTE=(8000 5678 8080 9621 9622)
 SERVIZI_SALUTE=(nocodb lightrag lightrag-demo tika controlli n8n ollama)
+TUTTI_I_PROFILI=(--profile avanzato --profile scansioni)
+PROFILI_COMPOSE=()   # profili facoltativi attivi in questo avvio (scegli_facoltativi)
+DOCLING_ATTIVO=false
+DOCLING_AVVISO=""
 IMMAGINE_ATTREZZI="caddy:2.11.9-alpine"
 mkdir -p "$STATO"
 LOG="$STATO/launcher.log"
@@ -96,7 +100,7 @@ ram_gb() {
   esac
 }
 
-immagini_mancanti() { compose config --images 2>/dev/null | while read -r i; do "$DOCKER" image inspect "$i" >/dev/null 2>&1 || echo "$i"; done; }
+immagini_mancanti() { compose ${PROFILI_COMPOSE[@]+"${PROFILI_COMPOSE[@]}"} config --images 2>/dev/null | while read -r i; do "$DOCKER" image inspect "$i" >/dev/null 2>&1 || echo "$i"; done; }
 
 disco_libero_gb() { df -Pk "$KIT" | awk 'NR==2 {printf "%d", $4/1024/1024}'; }
 
@@ -109,13 +113,12 @@ controlla_risorse() {
   if [ "$RAM_GB" -lt "$LEGGERO_RAM_MIN_GB" ] 2>/dev/null; then
     avviso "Il computer ha meno di ${LEGGERO_RAM_MIN_GB} GB di memoria: il laboratorio sarà molto lento. Valuta una postazione di dipartimento o un portatile in prestito."
   fi
-  local mem_docker
-  mem_docker=$(( $("$DOCKER" info --format '{{.MemTotal}}' 2>/dev/null || echo 0) / 1024 / 1024 ))
-  if [ "$mem_docker" -gt 0 ] && [ "$mem_docker" -lt 3500 ]; then
-    fallisci "Docker può usare solo ${mem_docker} MB di memoria: ne servono almeno 3500." \
+  MEM_DOCKER=$(( $("$DOCKER" info --format '{{.MemTotal}}' 2>/dev/null || echo 0) / 1024 / 1024 ))
+  if [ "$MEM_DOCKER" -gt 0 ] && [ "$MEM_DOCKER" -lt 3500 ]; then
+    fallisci "Docker può usare solo ${MEM_DOCKER} MB di memoria: ne servono almeno 3500." \
       "Apri Docker Desktop → Settings → Resources e porta «Memory limit» ad almeno 4 GB, poi Apply & restart e riprova."
   fi
-  [ "$mem_docker" -gt 0 ] && ok "Memoria assegnata a Docker: ${mem_docker} MB"
+  [ "$MEM_DOCKER" -gt 0 ] && ok "Memoria assegnata a Docker: ${MEM_DOCKER} MB"
   DISCO_GB="$(disco_libero_gb)"
   # 15 GB servono solo finché ci sono immagini da scaricare (circa 4 GB compressi, il doppio una volta estratte)
   if [ "$DISCO_GB" -lt 15 ] && ! [ -f "$STATO/primo-avvio-completato" ] && [ -n "$(immagini_mancanti)" ]; then
@@ -157,6 +160,26 @@ controlla_ollama() {
 }
 
 # ---------------------------------------------------------------------------
+# Servizi facoltativi scelti dal pannello: Neo4j (avanzato) e Docling (scansioni, ADR-006)
+# ---------------------------------------------------------------------------
+scegli_facoltativi() {
+  PROFILI_COMPOSE=(); DOCLING_ATTIVO=false; DOCLING_AVVISO=""
+  [ -f "$STATO/neo4j-attivo" ] && PROFILI_COMPOSE+=(--profile avanzato)
+  [ -f "$STATO/docling-attivo" ] || return 0
+  passo "Docling per i PDF scansionati"
+  local immagine
+  immagine="$(compose --profile scansioni config --images 2>/dev/null | grep docling)"
+  if [ "$MEM_DOCKER" -gt 0 ] && [ "$MEM_DOCKER" -lt 6000 ]; then
+    DOCLING_AVVISO="Docling non è stato avviato: Docker può usare solo ${MEM_DOCKER} MB di memoria e Docling ne chiede altri 3 GB. Apri Docker Desktop → Settings → Resources, porta «Memory limit» ad almeno 6 GB, poi fai di nuovo doppio clic su Avvia laboratorio. Intanto WF01 usa Tika."
+  elif ! "$DOCKER" image inspect "$immagine" >/dev/null 2>&1 && [ "$(disco_libero_gb)" -lt 12 ]; then
+    DOCLING_AVVISO="Docling non è stato avviato: per scaricarlo (circa 5 GB) servono almeno 12 GB liberi sul disco e ne restano $(disco_libero_gb). Libera spazio e fai di nuovo doppio clic su Avvia laboratorio. Intanto WF01 usa Tika."
+  fi
+  if [ -n "$DOCLING_AVVISO" ]; then avviso "$DOCLING_AVVISO"; return 0; fi
+  PROFILI_COMPOSE+=(--profile scansioni); DOCLING_ATTIVO=true
+  ok "Docling attivo (fino a 3 GB di memoria in più)"
+}
+
+# ---------------------------------------------------------------------------
 # Profilo dei modelli
 # ---------------------------------------------------------------------------
 scegli_profilo() {
@@ -177,7 +200,7 @@ scegli_profilo() {
 # ---------------------------------------------------------------------------
 # Segreti locali (.env) e credenziali dello studente
 # ---------------------------------------------------------------------------
-casuale() { LC_ALL=C tr -dc 'a-f0-9' < /dev/urandom | head -c "$1"; }
+casuale() { od -An -N"$1" -tx1 /dev/urandom | tr -d ' \n' | cut -c1-"$1"; }
 
 imposta_env() {
   # Aggiorna o aggiunge VARIABILE=valore in .env
@@ -263,7 +286,8 @@ scarica_immagini() {
   mancanti="$(immagini_mancanti)"
   if [ -z "$mancanti" ]; then ok "Tutte le immagini sono già presenti"; return; fi
   echo "  Scarico le immagini mancanti (circa 4 GB la prima volta: può richiedere molti minuti)."
-  compose pull --quiet 2>&1 | tee -a "$LOG" >/dev/null &
+  echo "$mancanti" | grep -q docling && echo "  Docling da solo pesa circa 5 GB: tieni il computer collegato a internet e alla corrente."
+  compose ${PROFILI_COMPOSE[@]+"${PROFILI_COMPOSE[@]}"} pull --quiet 2>&1 | tee -a "$LOG" >/dev/null &
   local pid=$!
   while kill -0 "$pid" 2>/dev/null; do printf '.'; sleep 5; done
   echo
@@ -358,6 +382,8 @@ scrivi_stato() {
   "ram_gb": $RAM_GB,
   "disco_libero_gb": $(disco_libero_gb),
   "neo4j": $([ -f "$STATO/neo4j-attivo" ] && echo true || echo false),
+  "docling": $DOCLING_ATTIVO,
+  "docling_avviso": "$DOCLING_AVVISO",
   "avviato_il": "$(date '+%Y-%m-%dT%H:%M:%S')"
 }
 EOF
@@ -376,10 +402,11 @@ avvia_servizi() {
   passo "Avvio dei servizi (la prima volta prepara anche tabelle e workflow)"
   mkdir -p "$DATI"/{inbox,testi,dossier/backup}
   scrivi_stato
-  local profili=()
-  [ -f "$STATO/neo4j-attivo" ] && profili=(--profile avanzato)
+  # Un servizio facoltativo appena disattivato dal pannello va spento: «up» non lo fa da solo.
+  [ -f "$STATO/neo4j-attivo" ] || compose --profile avanzato rm -sf neo4j >>"$LOG" 2>&1
+  [ "$DOCLING_ATTIVO" = true ] || compose --profile scansioni rm -sf docling >>"$LOG" 2>&1
   # ${a[@]+...}: compatibile con bash 3.2 di macOS anche con array vuoto e set -u
-  if ! compose ${profili[@]+"${profili[@]}"} up -d --remove-orphans >>"$LOG" 2>&1; then
+  if ! compose ${PROFILI_COMPOSE[@]+"${PROFILI_COMPOSE[@]}"} up -d --remove-orphans >>"$LOG" 2>&1; then
     local messaggio
     messaggio="$(sed -n 's/.*"messaggio": "\(.*\)",*/\1/p' "$STATO/init.json" 2>/dev/null | head -1)"
     fallisci "I servizi del laboratorio non sono partiti. ${messaggio}" \
@@ -389,6 +416,9 @@ avvia_servizi() {
   for s in "${SERVIZI_SALUTE[@]}"; do
     if attendi_salute "$s" 60; then ok "$s pronto"; else avviso "$s non risponde ancora: controlla il pannello tra qualche minuto"; fi
   done
+  if [ "$DOCLING_ATTIVO" = true ]; then
+    if attendi_salute docling 60; then ok "docling pronto"; else avviso "docling non risponde ancora: controlla il pannello tra qualche minuto"; fi
+  fi
   touch "$STATO/primo-avvio-completato"
 }
 
@@ -410,6 +440,7 @@ cmd_avvia() {
   controlla_risorse
   controlla_ollama
   scegli_profilo
+  scegli_facoltativi
   prepara_segreti
   carica_offline
   scarica_immagini
@@ -428,7 +459,7 @@ cmd_ferma() {
   echo "${GRASSETTO}Fermo il laboratorio${NORMALE}"
   trova_docker || fallisci "Docker Desktop non è installato." "Non c'è niente da fermare."
   docker_attivo || { ok "Docker è già spento: il laboratorio è fermo."; attendi_invio; return; }
-  compose --profile avanzato down >>"$LOG" 2>&1 || fallisci "Non riesco a fermare i servizi." "Chiudi Docker Desktop dal suo menu: i dati sono al sicuro."
+  compose "${TUTTI_I_PROFILI[@]}" down >>"$LOG" 2>&1 || fallisci "Non riesco a fermare i servizi." "Chiudi Docker Desktop dal suo menu: i dati sono al sicuro."
   ok "Laboratorio fermato. I tuoi dati restano nella cartella dati e nei registri."
   attendi_invio
 }
@@ -458,10 +489,10 @@ cmd_diagnostica() {
   if trova_docker && docker_attivo; then
     "$DOCKER" version > "$dir/docker-version.txt" 2>&1
     "$DOCKER" info > "$dir/docker-info.txt" 2>&1
-    compose --profile avanzato ps -a > "$dir/compose-ps.txt" 2>&1
+    compose "${TUTTI_I_PROFILI[@]}" ps -a > "$dir/compose-ps.txt" 2>&1
     "$DOCKER" stats --no-stream > "$dir/docker-stats.txt" 2>&1
     local s
-    for s in pannello n8n init nocodb lightrag lightrag-demo tika controlli neo4j; do
+    for s in pannello n8n init nocodb lightrag lightrag-demo tika controlli neo4j docling; do
       compose logs --no-color --tail 500 "$s" > "$dir/log/$s.txt" 2>&1
     done
   else
@@ -469,7 +500,7 @@ cmd_diagnostica() {
   fi
   { curl -sS -m 5 "$OLLAMA/api/version"; echo; curl -sS -m 5 "$OLLAMA/api/tags"; } > "$dir/ollama.txt" 2>&1
   {
-    for s in "${SERVIZI_SALUTE[@]}" lightrag-demo neo4j; do
+    for s in "${SERVIZI_SALUTE[@]}" neo4j docling; do
       printf '%-15s %s\n' "$s" "$(curl -s -m 5 -o /dev/null -w '%{http_code}' "$PANNELLO/salute/$s" 2>/dev/null)"
     done
   } > "$dir/salute.txt"
@@ -511,7 +542,7 @@ cmd_backup() {
   dest="$DATI/dossier/backup/backup-$data"
   mkdir -p "$dest"
   passo "Fermo i servizi per copiare i dati in modo coerente"
-  compose --profile avanzato stop >>"$LOG" 2>&1
+  compose "${TUTTI_I_PROFILI[@]}" stop >>"$LOG" 2>&1
   local progetto vol
   progetto="laboratorio-ia"
   for vol in n8n_data nocodb_data lightrag_data lightrag_inputs neo4j_data; do

@@ -3,7 +3,8 @@
 #  1. nessuna porta in ascolto fuori da 127.0.0.1;
 #  2. tutte le fixture di sicurezza segnalate dal servizio controlli CON Tika (anche l'immagine);
 #  3. thinking disattivato nell'estrazione;
-#  4. golden questions sul grafo demo: il documento atteso compare tra i riferimenti (≥ 7/10).
+#  4. golden questions sul grafo demo: il documento atteso compare tra i riferimenti (≥ 7/10);
+#  5. solo se Docling è attivo (profilo scansioni): conversione di un PDF con RapidOCR (ADR-006).
 set -uo pipefail
 
 RADICE="$(cd "$(dirname "$0")/.." && pwd)"
@@ -18,7 +19,7 @@ esito() { if [ "$1" -eq 0 ]; then echo "ok   $2"; else echo "FAIL $2"; falliti=1
 set -a; source "$KIT/.env"; set +a
 
 # 1. Porte
-fuori="$(compose --profile avanzato ps --format '{{.Publishers}}' | grep -oE '[0-9.:]+->' | grep -v '^127\.0\.0\.1:' || true)"
+fuori="$(compose --profile avanzato --profile scansioni ps --format '{{.Publishers}}' | grep -oE '[0-9.:]+->' | grep -v '^127\.0\.0\.1:' || true)"
 [ -z "$fuori" ]; esito $? "porte pubblicate solo su 127.0.0.1 ${fuori:+(trovate: $fuori)}"
 
 # 2. Fixture con Tika: i file sono inviati in base64 al servizio controlli dall'interno della rete Docker
@@ -47,6 +48,18 @@ done
 
 # 3. Thinking spento
 bash "$RADICE/scripts/test_thinking.sh" >/dev/null; esito $? "lab-estrazione risponde senza blocchi di ragionamento"
+
+# 5. Docling, se attivo: stessa chiamata di WF01 dall'interno della rete Docker (nessuna porta pubblicata)
+if [ -n "$(compose --profile scansioni ps -q docling 2>/dev/null)" ]; then
+  stato_docling="$(compose exec -T n8n sh -c 'cat > /tmp/prova.pdf; node -e "
+    const fd=new FormData(); fd.append(\"files\", new Blob([require(\"fs\").readFileSync(\"/tmp/prova.pdf\")],{type:\"application/pdf\"}), \"prova.pdf\");
+    for (const [k,v] of [[\"to_formats\",\"md\"],[\"do_ocr\",\"true\"],[\"force_ocr\",\"false\"],[\"ocr_preset\",\"rapidocr\"],[\"ocr_lang\",\"it\"],[\"table_mode\",\"accurate\"]]) fd.append(k,v);
+    fetch(\"http://docling:5001/v1/convert/file\",{method:\"POST\",body:fd}).then(r=>r.json()).then(j=>console.log(j.status+\" \"+(j.document.md_content||\"\").length)).catch(e=>console.log(\"errore \"+e.message))"' \
+    < "$RADICE/samples/security_fixtures/pdf_corpo_1.pdf")"
+  [[ "$stato_docling" =~ ^success\ [1-9] ]]; esito $? "Docling converte un PDF con RapidOCR ($stato_docling)"
+else
+  echo "--   Docling non attivo: controllo saltato"
+fi
 
 # 4. Golden questions sul grafo demo
 if [ -f "$KIT/demo/grafo/kv_store_doc_status.json" ]; then

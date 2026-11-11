@@ -14,13 +14,13 @@ CONTESTO="${CONTESTO:-32768}"
 IMMAGINE="ghcr.io/hkuds/lightrag:v1.5.7"
 NOME="lightrag-costruzione-demo"
 PORTA=9699
-CHIAVE="costruzione-$(LC_ALL=C tr -dc 'a-f0-9' < /dev/urandom | head -c 24)"
+CHIAVE="costruzione-$(od -An -N12 -tx1 /dev/urandom | tr -d ' \n')"
 LAVORO="$(mktemp -d)"
 # shellcheck source=../kit/config/modelli.env
 source "$RADICE/kit/config/modelli.env"
 
 curl -fsS http://127.0.0.1:11434/api/tags | grep -q "\"name\":\"$MODELLO_GRANDE\"" || {
-  echo "Il modello $MODELLO_GRANDE non è in Ollama: esegui «ollama pull $MODELLO_GRANDE»." >&2; exit 1; }
+  echo "Il modello $MODELLO_GRANDE non è in Ollama: esegui «ollama pull ${MODELLO_GRANDE}»." >&2; exit 1; }
 
 # Stessa configurazione del kit, con il modello grande per tutti i ruoli e più contesto.
 grep -v '^\s*#' "$RADICE/kit/config/lightrag.env" | grep -v '^\s*$' > "$LAVORO/lightrag.env"
@@ -45,7 +45,8 @@ mkdir -p "$LAVORO/rag_storage"
   --env-file "$LAVORO/lightrag.env" -e HOST=0.0.0.0 -e PORT=9621 -e WORKING_DIR=/app/data/rag_storage \
   -v "$LAVORO/rag_storage:/app/data/rag_storage" -v "$RADICE/kit/config/lightrag-prompts:/app/data/prompts:ro" \
   "$IMMAGINE" >/dev/null
-trap '"$DOCKER" rm -f "$NOME" >/dev/null 2>&1 || true' EXIT
+# Il trap conserva il codice d'uscita dello script (in bash 3.2 altrimenti prevale quello del trap)
+trap 'rc=$?; "$DOCKER" rm -f "$NOME" >/dev/null 2>&1 || true; exit $rc' EXIT
 
 URL="http://127.0.0.1:$PORTA"
 for _ in $(seq 1 60); do curl -fsS "$URL/health" >/dev/null 2>&1 && break; sleep 2; done
@@ -61,7 +62,7 @@ while IFS=, read -r doc_id titolo autore data tipologia _; do
   echo "inviato $doc_id"
 done < <(python3 -c 'import csv,sys; w=csv.writer(sys.stdout); [w.writerow([r["doc_id"],r["titolo"].replace(",",";"),r["autore"].replace(",",";"),r["data_documento"],r["tipologia"]]) for r in csv.DictReader(open(sys.argv[1], encoding="utf-8"))]' "$RADICE/kit/demo/corpus/registro_demo.csv")
 
-echo "Indicizzazione in corso con $MODELLO_GRANDE…"
+echo "Indicizzazione in corso con ${MODELLO_GRANDE}…"
 while true; do
   stato="$(curl -fsS "$URL/documents/status_counts" -H "X-API-Key: $CHIAVE" || echo '{}')"
   echo "  $(date '+%H:%M:%S') $stato"

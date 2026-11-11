@@ -27,7 +27,7 @@ test: check-secrets
 	@if command -v shellcheck >/dev/null; then shellcheck -S warning kit/lib/laboratorio.sh scripts/*.sh; else echo "shellcheck non installato: controllo saltato"; fi
 	@if command -v pwsh >/dev/null; then pwsh -NoProfile -Command "\$$e=\$$null; [void][System.Management.Automation.Language.Parser]::ParseFile('kit/lib/laboratorio.ps1',[ref]\$$null,[ref]\$$e); if(\$$e){\$$e; exit 1}"; else echo "pwsh non installato: sintassi PowerShell non verificata"; fi
 	@cd kit && N8N_ENCRYPTION_KEY=x NC_ADMIN_EMAIL=a@b.it NC_ADMIN_PASSWORD=x NC_AUTH_JWT_SECRET=x LIGHTRAG_API_KEY=x LIGHTRAG_DEMO_API_KEY=x NEO4J_PASSWORD=x \
-	  $(DOCKER) compose -f compose.yml --profile avanzato config -q && echo "ok   compose.yml valido"
+	  $(DOCKER) compose -f compose.yml --profile avanzato --profile scansioni config -q && echo "ok   compose.yml valido"
 
 test-integrazione:
 	bash scripts/test_integrazione.sh

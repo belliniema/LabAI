@@ -90,6 +90,10 @@
       <p style="margin:16px 0 4px">Neo4j Browser (facoltativo, solo con 16 GB di RAM) per esplorare il grafo esportato:</p>
       <div class="bottoni"><button id="neo4j-on">Attiva Neo4j</button><button id="neo4j-off">Disattiva Neo4j</button></div>
     </div>
+    <div id="riga-docling" hidden>
+      <p style="margin:16px 0 4px">Docling (facoltativo, solo con 16 GB di RAM) per leggere meglio PDF scansionati, colonne e tabelle. La prima volta scarica circa 5 GB; poi in WF01 scegli <code>motore_pdf_e_immagini</code> = <code>docling</code>:</p>
+      <div class="bottoni"><button id="docling-on">Attiva Docling</button><button id="docling-off">Disattiva Docling</button></div>
+    </div>
     <div id="esito-azione" role="status"></div>
   </section>
 
@@ -118,6 +122,7 @@ const SERVIZI = [
   { id: 'ollama', nome: 'Ollama · modelli', descr: 'I modelli linguistici sul tuo computer (applicazione con l’icona del lama).' },
   { id: 'tika', nome: 'Apache Tika', descr: 'Estrae testo e metadati da PDF, Word e immagini (OCR). Lavora dietro le quinte.' },
   { id: 'controlli', nome: 'Controlli di sicurezza', descr: 'Cerca testo nascosto e istruzioni-esca nei documenti (WF04). Dietro le quinte.' },
+  { id: 'docling', nome: 'Docling (facoltativo)', descr: 'Legge PDF scansionati con impaginazione e tabelle (WF01). Dietro le quinte, solo con 16 GB di RAM.', facoltativo: true },
   { id: 'neo4j', nome: 'Neo4j (facoltativo)', descr: 'Esplorazione avanzata del grafo, solo con 16 GB di RAM.', url: 'http://localhost:7474', facoltativo: true },
 ];
 
@@ -171,6 +176,8 @@ async function aggiorna() {
     document.getElementById('disco').textContent = `${stato.disco_libero_gb} GB`;
     document.getElementById('versione').textContent = stato.versione_kit;
     document.getElementById('riga-neo4j').hidden = stato.ram_gb < 16;
+    document.getElementById('riga-docling').hidden = stato.ram_gb < 16;
+    if (stato.docling_avviso) avviso(stato.docling_avviso, true);
     if (stato.disco_libero_gb < 5) avviso(`Restano solo ${stato.disco_libero_gb} GB liberi sul disco: libera spazio per non interrompere l’indicizzazione.`, true);
   }
   if (init && init.stato === 'errore') avviso(`<strong>Prima configurazione non riuscita.</strong> ${init.messaggio}<br>${init.rimedio || ''}`, true);
@@ -194,6 +201,8 @@ document.querySelectorAll('[data-profilo]').forEach(b => b.addEventListener('cli
 }));
 document.getElementById('neo4j-on').addEventListener('click', () => azione('/azioni/neo4j', { attivo: true }));
 document.getElementById('neo4j-off').addEventListener('click', () => azione('/azioni/neo4j', { attivo: false }));
+document.getElementById('docling-on').addEventListener('click', () => azione('/azioni/docling', { attivo: true }));
+document.getElementById('docling-off').addEventListener('click', () => azione('/azioni/docling', { attivo: false }));
 
 aggiorna();
 setInterval(aggiorna, 15000);

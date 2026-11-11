@@ -41,11 +41,13 @@ def test_compose():
         for p in s.get("ports", []):
             controlla(str(p).startswith("127.0.0.1:"), f"{nome}: porta pubblicata fuori da 127.0.0.1 ({p})")
         controlla("mem_limit" in s, f"{nome}: manca il limite di memoria")
-        if nome not in ("init", "neo4j"):
+        if nome not in ("init", "neo4j", "docling"):
             totale += mb(s.get("mem_limit", "0m"))
     controlla(not servizi["tika"].get("ports"), "tika non deve pubblicare porte")
     controlla(not servizi["controlli"].get("ports"), "controlli non deve pubblicare porte")
     controlla(servizi["neo4j"].get("profiles") == ["avanzato"], "neo4j deve stare solo nel profilo avanzato")
+    controlla(servizi["docling"].get("profiles") == ["scansioni"], "docling deve stare solo nel profilo scansioni (ADR-006)")
+    controlla(not servizi["docling"].get("ports"), "docling non deve pubblicare porte")
     controlla(totale <= 3072, f"somma dei limiti di memoria {totale} MB oltre 3 GB")
     controlla("postgres" not in json.dumps(c).lower(), "niente Postgres né altri server di database")
     print(f"ok   compose: immagini fissate, porte su 127.0.0.1, memoria totale {totale} MB")
@@ -53,7 +55,8 @@ def test_compose():
 
 def test_tag_esatti():
     attesi = {"caddy:2.11.9-alpine", "docker.n8n.io/n8nio/n8n:2.47.3", "nocodb/nocodb:2026.10.1",
-              "ghcr.io/hkuds/lightrag:v1.5.7", "apache/tika:3.3.3.0-full", "neo4j:5.26.33-community"}
+              "ghcr.io/hkuds/lightrag:v1.5.7", "apache/tika:3.3.3.0-full", "neo4j:5.26.33-community",
+              "quay.io/docling-project/docling-serve-cpu:v1.38.2"}
     trovati = {s["image"] for s in compose()["services"].values()}
     controlla(trovati == attesi, f"immagini diverse da ADR-001: {sorted(trovati ^ attesi)}")
 

@@ -191,6 +191,24 @@ services:
       JAVA_TOOL_OPTIONS: -Xmx448m -XX:+UseSerialGC
     mem_limit: 640m
 
+  # Profilo facoltativo «scansioni»: impaginazione, tabelle e OCR dei PDF scansionati (ADR-006).
+  # Si attiva dal pannello, solo con 16 GB di RAM. Nessuna porta pubblicata.
+  docling:
+    image: quay.io/docling-project/docling-serve-cpu:v1.38.2
+    <<: *log
+    profiles: ["scansioni"]
+    restart: unless-stopped
+    expose:
+      - "5001"
+    environment:
+      DOCLING_SERVE_ENG_LOC_NUM_WORKERS: "1"
+      DOCLING_SERVE_OPTIONS_CACHE_SIZE: "1"
+      DOCLING_SERVE_MAX_SYNC_WAIT: "1800"
+      DOCLING_PERF_PAGE_BATCH_SIZE: "1"
+      DOCLING_NUM_THREADS: "2"
+      OMP_NUM_THREADS: "2"
+    mem_limit: 3g
+
   # Servizio interno dei controlli di sicurezza (ADR-003). Usa l'immagine di n8n solo per Node.js.
   controlli:
     image: docker.n8n.io/n8nio/n8n:2.47.3

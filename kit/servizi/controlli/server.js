@@ -659,7 +659,7 @@ function scaricaPagina(indirizzo, salti) {
 
 // ---------------------------------------------------------------------------
 // Azioni del pannello: preferenze lette dal launcher al prossimo avvio.
-// Scrivono solo due file in .stato; nessun altro effetto.
+// Scrivono solo tre file in .stato; nessun altro effetto.
 // ---------------------------------------------------------------------------
 const CARTELLA_STATO = process.env.CARTELLA_STATO || '/stato';
 
@@ -671,8 +671,9 @@ function azionePannello(percorso, input) {
     else return { ok: false, messaggio: 'Profilo sconosciuto.' };
     return { ok: true, messaggio: 'Preferenza salvata. Fai doppio clic su «Avvia laboratorio» per applicarla.' };
   }
-  if (percorso === '/azioni/neo4j') {
-    const f = path.join(CARTELLA_STATO, 'neo4j-attivo');
+  const facoltativi = { '/azioni/neo4j': 'neo4j-attivo', '/azioni/docling': 'docling-attivo' };
+  if (facoltativi[percorso]) {
+    const f = path.join(CARTELLA_STATO, facoltativi[percorso]);
     if (input.attivo === true) fs.writeFileSync(f, 'si\n');
     else { try { fs.unlinkSync(f); } catch (e) { /* già assente */ } }
     return { ok: true, messaggio: 'Preferenza salvata. Fai doppio clic su «Avvia laboratorio» per applicarla.' };

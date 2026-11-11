@@ -17,6 +17,10 @@ $Ollama = 'http://127.0.0.1:11434'
 $Pannello = 'http://localhost:8000'
 $Porte = 8000, 5678, 8080, 9621, 9622
 $ServiziSalute = 'nocodb', 'lightrag', 'lightrag-demo', 'tika', 'controlli', 'n8n', 'ollama'
+$TuttiIProfili = '--profile', 'avanzato', '--profile', 'scansioni'
+$ProfiliCompose = @()   # profili facoltativi attivi in questo avvio (Scegli-Facoltativi)
+$DoclingAttivo = $false
+$DoclingAvviso = ''
 $ImmagineAttrezzi = 'caddy:2.11.9-alpine'
 New-Item -ItemType Directory -Force -Path $Stato | Out-Null
 $Log = Join-Path $Stato 'launcher.log'
@@ -93,8 +97,8 @@ function Controlla-Risorse {
     $script:RamGB = Ram-GB
     Ok "Memoria del computer: $RamGB GB"
     if ($RamGB -lt [int]$M.LEGGERO_RAM_MIN_GB) { Avviso "Il computer ha meno di $($M.LEGGERO_RAM_MIN_GB) GB di memoria: il laboratorio sarà molto lento. Valuta una postazione di dipartimento o un portatile in prestito." }
-    $memDocker = 0
-    try { $memDocker = [int64](& $script:Docker info --format '{{.MemTotal}}') / 1MB } catch {}
+    $script:memDocker = 0
+    try { $script:memDocker = [int64](& $script:Docker info --format '{{.MemTotal}}') / 1MB } catch {}
     if ($memDocker -gt 0 -and $memDocker -lt 3500) {
         Fallisci "Docker può usare solo $([int]$memDocker) MB di memoria: ne servono almeno 3500." 'Se usi WSL2, chiudi gli altri programmi e riavvia il computer; se il problema resta, chiedi allo sportello di installazione di impostare la memoria di WSL (file .wslconfig).'
     }
@@ -241,12 +245,31 @@ function Carica-Offline {
     }
 }
 
+# Servizi facoltativi scelti dal pannello: Neo4j (avanzato) e Docling (scansioni, ADR-006)
+function Scegli-Facoltativi {
+    $script:ProfiliCompose = @(); $script:DoclingAttivo = $false; $script:DoclingAvviso = ''
+    if (Test-Path (Join-Path $Stato 'neo4j-attivo')) { $script:ProfiliCompose += '--profile', 'avanzato' }
+    if (-not (Test-Path (Join-Path $Stato 'docling-attivo'))) { return }
+    Passo 'Docling per i PDF scansionati'
+    $immagine = Compose --profile scansioni config --images 2>$null | Where-Object { $_ -match 'docling' }
+    & $script:Docker image inspect $immagine *> $null; $presente = ($LASTEXITCODE -eq 0)
+    if ($memDocker -gt 0 -and $memDocker -lt 6000) {
+        $script:DoclingAvviso = "Docling non è stato avviato: Docker può usare solo $([int]$memDocker) MB di memoria e Docling ne chiede altri 3 GB. Chiedi allo sportello di installazione di portare la memoria di WSL ad almeno 6 GB (file .wslconfig), poi fai di nuovo doppio clic su Avvia laboratorio. Intanto WF01 usa Tika."
+    } elseif (-not $presente -and (Disco-Libero-GB) -lt 12) {
+        $script:DoclingAvviso = "Docling non è stato avviato: per scaricarlo (circa 5 GB) servono almeno 12 GB liberi sul disco e ne restano $(Disco-Libero-GB). Libera spazio e fai di nuovo doppio clic su Avvia laboratorio. Intanto WF01 usa Tika."
+    }
+    if ($DoclingAvviso) { Avviso $DoclingAvviso; return }
+    $script:ProfiliCompose += '--profile', 'scansioni'; $script:DoclingAttivo = $true
+    Ok 'Docling attivo (fino a 3 GB di memoria in più)'
+}
+
 function Scarica-Immagini {
     Passo 'Immagini Docker'
-    $mancanti = @(Compose config --images | Where-Object { & $script:Docker image inspect $_ *> $null; $LASTEXITCODE -ne 0 })
+    $mancanti = @(Compose @ProfiliCompose config --images | Where-Object { & $script:Docker image inspect $_ *> $null; $LASTEXITCODE -ne 0 })
     if ($mancanti.Count -eq 0) { Ok 'Tutte le immagini sono già presenti'; return }
     Write-Host '  Scarico le immagini mancanti (circa 4 GB la prima volta: può richiedere molti minuti).'
-    Compose pull 2>&1 | Tee-Object -FilePath $Log -Append | Out-Null
+    if ($mancanti -match 'docling') { Write-Host '  Docling da solo pesa circa 5 GB: tieni il computer collegato a internet e alla corrente.' }
+    Compose @ProfiliCompose pull 2>&1 | Tee-Object -FilePath $Log -Append | Out-Null
     if ($LASTEXITCODE -ne 0) { Fallisci 'Lo scaricamento delle immagini Docker non è riuscito.' 'Controlla la connessione a internet (o usa la chiavetta del dipartimento con la cartella offline) e fai di nuovo doppio clic su Avvia laboratorio.' }
     Ok 'Immagini scaricate'
 }
@@ -295,7 +318,8 @@ function Scrivi-Stato {
     $s = [ordered]@{
         versione_kit = $M.KIT_VERSION; profilo = $Profilo; llm = $LLM; contesto = $NumCtx; embedding = $M.EMBEDDING_MODEL
         corpus_consigliato = $CorpusMax; ram_gb = $RamGB; disco_libero_gb = (Disco-Libero-GB)
-        neo4j = (Test-Path (Join-Path $Stato 'neo4j-attivo')); avviato_il = (Get-Date -Format 'yyyy-MM-ddTHH:mm:ss')
+        neo4j = (Test-Path (Join-Path $Stato 'neo4j-attivo')); docling = $DoclingAttivo; docling_avviso = $DoclingAvviso
+        avviato_il = (Get-Date -Format 'yyyy-MM-ddTHH:mm:ss')
     }
     Scrivi-Testo (Join-Path $Stato 'stato.json') ($s | ConvertTo-Json)
 }
@@ -311,9 +335,10 @@ function Avvia-Servizi {
     Passo 'Avvio dei servizi (la prima volta prepara anche tabelle e workflow)'
     foreach ($c in 'inbox', 'testi', 'dossier\backup') { New-Item -ItemType Directory -Force -Path (Join-Path $Dati $c) | Out-Null }
     Scrivi-Stato
-    $profili = @()
-    if (Test-Path (Join-Path $Stato 'neo4j-attivo')) { $profili = @('--profile', 'avanzato') }
-    Compose @profili up -d --remove-orphans 2>&1 | Tee-Object -FilePath $Log -Append | Out-Null
+    # Un servizio facoltativo appena disattivato dal pannello va spento: «up» non lo fa da solo.
+    if (-not (Test-Path (Join-Path $Stato 'neo4j-attivo'))) { Compose --profile avanzato rm -sf neo4j 2>&1 | Out-File -Append $Log -Encoding UTF8 }
+    if (-not $DoclingAttivo) { Compose --profile scansioni rm -sf docling 2>&1 | Out-File -Append $Log -Encoding UTF8 }
+    Compose @ProfiliCompose up -d --remove-orphans 2>&1 | Tee-Object -FilePath $Log -Append | Out-Null
     if ($LASTEXITCODE -ne 0) {
         $msg = ''
         try { $msg = (Get-Content (Join-Path $Stato 'init.json') -Raw | ConvertFrom-Json).messaggio } catch {}
@@ -321,6 +346,9 @@ function Avvia-Servizi {
     }
     foreach ($s in $ServiziSalute) {
         if (Attendi-Salute $s 60) { Ok "$s pronto" } else { Avviso "$s non risponde ancora: controlla il pannello tra qualche minuto" }
+    }
+    if ($DoclingAttivo) {
+        if (Attendi-Salute 'docling' 60) { Ok 'docling pronto' } else { Avviso 'docling non risponde ancora: controlla il pannello tra qualche minuto' }
     }
     New-Item -ItemType File -Force -Path (Join-Path $Stato 'primo-avvio-completato') | Out-Null
 }
@@ -332,7 +360,7 @@ function Cmd-Avvia {
     Write-Host "Laboratorio di IA per la ricerca storica · kit $($M.KIT_VERSION)" -ForegroundColor White
     Write-Host 'Non chiudere questa finestra finché non si apre il pannello nel browser.'
     Registra "=== avvio kit $($M.KIT_VERSION)"
-    Controlla-Docker; Controlla-Risorse; Controlla-Ollama; Scegli-Profilo; Prepara-Segreti
+    Controlla-Docker; Controlla-Risorse; Controlla-Ollama; Scegli-Profilo; Scegli-Facoltativi; Prepara-Segreti
     Carica-Offline; Scarica-Immagini; Prepara-Modelli; Avvia-Servizi; Scrivi-Stato
     Passo 'Fatto'
     Ok "Il pannello del laboratorio si apre nel browser: $Pannello"
@@ -346,7 +374,7 @@ function Cmd-Ferma {
     Write-Host 'Fermo il laboratorio' -ForegroundColor White
     if (-not (Trova-Docker)) { Fallisci 'Docker Desktop non è installato.' "Non c'è niente da fermare." }
     if (-not (Docker-Attivo)) { Ok 'Docker è già spento: il laboratorio è fermo.'; Attendi-Invio; return }
-    Compose --profile avanzato down 2>&1 | Tee-Object -FilePath $Log -Append | Out-Null
+    Compose @TuttiIProfili down 2>&1 | Tee-Object -FilePath $Log -Append | Out-Null
     Ok 'Laboratorio fermato. I tuoi dati restano nella cartella dati e nei registri.'
     Attendi-Invio
 }
@@ -364,14 +392,14 @@ function Cmd-Diagnostica {
     if ((Trova-Docker) -and (Docker-Attivo)) {
         & $script:Docker version 2>&1 | Out-File (Join-Path $tmp 'docker-version.txt') -Encoding UTF8
         & $script:Docker info 2>&1 | Out-File (Join-Path $tmp 'docker-info.txt') -Encoding UTF8
-        Compose --profile avanzato ps -a 2>&1 | Out-File (Join-Path $tmp 'compose-ps.txt') -Encoding UTF8
+        Compose @TuttiIProfili ps -a 2>&1 | Out-File (Join-Path $tmp 'compose-ps.txt') -Encoding UTF8
         & $script:Docker stats --no-stream 2>&1 | Out-File (Join-Path $tmp 'docker-stats.txt') -Encoding UTF8
-        foreach ($s in 'pannello', 'n8n', 'init', 'nocodb', 'lightrag', 'lightrag-demo', 'tika', 'controlli', 'neo4j') {
+        foreach ($s in 'pannello', 'n8n', 'init', 'nocodb', 'lightrag', 'lightrag-demo', 'tika', 'controlli', 'neo4j', 'docling') {
             Compose logs --no-color --tail 500 $s 2>&1 | Out-File (Join-Path $tmp "log\$s.txt") -Encoding UTF8
         }
     } else { 'Docker non installato o non avviato' | Set-Content (Join-Path $tmp 'docker-version.txt') }
     try { (Ollama-Get '/api/version' | ConvertTo-Json), (Ollama-Get '/api/tags' | ConvertTo-Json -Depth 5) | Out-File (Join-Path $tmp 'ollama.txt') -Encoding UTF8 } catch { 'Ollama non risponde' | Out-File (Join-Path $tmp 'ollama.txt') }
-    $salute = foreach ($s in $ServiziSalute + 'neo4j') {
+    $salute = foreach ($s in $ServiziSalute + 'neo4j', 'docling') {
         $codice = try { (Invoke-WebRequest -UseBasicParsing -TimeoutSec 5 -Uri "$Pannello/salute/$s").StatusCode } catch { 'errore' }
         '{0,-15} {1}' -f $s, $codice
     }
@@ -401,7 +429,7 @@ function Cmd-Backup {
     $dest = Join-Path $Dati "dossier\backup\backup-$data"
     New-Item -ItemType Directory -Force -Path $dest | Out-Null
     Passo 'Fermo i servizi per copiare i dati in modo coerente'
-    Compose --profile avanzato stop 2>&1 | Out-File -Append $Log -Encoding UTF8
+    Compose @TuttiIProfili stop 2>&1 | Out-File -Append $Log -Encoding UTF8
     foreach ($vol in 'n8n_data', 'nocodb_data', 'lightrag_data', 'lightrag_inputs', 'neo4j_data') {
         & $script:Docker volume inspect "laboratorio-ia_$vol" *> $null
         if ($LASTEXITCODE -ne 0) { continue }

@@ -21,6 +21,7 @@ NOCODB = "http://nocodb:8080/api/v2/tables/__TBL_{}__/records"
 LIGHTRAG = "http://lightrag:9621"
 LIGHTRAG_DEMO = "http://lightrag-demo:9621"
 TIKA = "http://tika:9998"
+DOCLING = "http://docling:5001"
 CONTROLLI = "http://controlli:8099"
 OLLAMA = "http://host.docker.internal:11434"
 N8N_API = "http://localhost:5678/api/v1"
@@ -113,7 +114,7 @@ class Workflow:
         return self.nodo(nome, "n8n-nodes-base.set", 3.4, p, pos)
 
     def http(self, nome, metodo, url, pos, cred=None, corpo=None, query=None, intestazioni=None, binario=None,
-             risposta_testo=None, timeout=120000, errore=True, risposta_completa=False, mai_errore=False):
+             risposta_testo=None, timeout=120000, errore=True, risposta_completa=False, mai_errore=False, modulo=None):
         p = {"method": metodo, "url": url, "options": {"timeout": timeout}}
         if cred:
             p["authentication"] = "genericCredentialType"
@@ -137,6 +138,13 @@ class Workflow:
             p["sendBody"] = True
             p["contentType"] = "binaryData"
             p["inputDataFieldName"] = binario
+        if modulo:
+            # multipart/form-data: ("campo", "@binario") allega il file binario, gli altri sono testo
+            p["sendBody"] = True
+            p["contentType"] = "multipart-form-data"
+            p["bodyParameters"] = {"parameters": [
+                {"parameterType": "formBinaryData", "name": k, "inputDataFieldName": v[1:]} if v.startswith("@")
+                else {"name": k, "value": v} for k, v in modulo]}
         risposta = {}
         if risposta_testo:
             risposta = {"responseFormat": "text", "outputPropertyName": risposta_testo}
@@ -299,15 +307,19 @@ def wf01():
     w = Workflow(1, "Ingestione da cartella", nota(
         "Legge i file nella cartella `inbox`, ne estrae testo e metadati con Apache Tika (con OCR per le "
         "scansioni), salva il testo in `testi/<doc_id>.txt`, calcola l'impronta SHA-256 e crea il record nel "
-        "registro del corpus con stato `acquisito`. I duplicati (stessa impronta) vengono saltati.",
+        "registro del corpus con stato `acquisito`. I duplicati (stessa impronta) vengono saltati. Per PDF e "
+        "immagini puoi usare Docling, che ricostruisce colonne e tabelle delle scansioni (ADR-006).",
         "I file che hai trascinato in `LaboratorioIA/dati/inbox`.",
-        "Un file di testo per documento in `testi/` e un record in `corpus_documenti`.",
-        "Solo PARAMETRI: `lingua_ocr` (es. ita+eng, ita+lat) e `licenza_predefinita`.",
+        "Un file di testo per documento in `testi/` e un record in `corpus_documenti`; in `note` il motore usato.",
+        "Solo PARAMETRI: `lingua_ocr` (es. ita+eng, ita+lat), `licenza_predefinita` e `motore_pdf_e_immagini` "
+        "(`tika` oppure `docling`: prima attiva Docling dal pannello).",
         "L'OCR sbaglia: controlla il testo a campione e compila `qualita_ocr`. Il titolo è provvisorio (nome del "
-        "file o metadato): correggilo in NocoDB. File grandi o scansioni lunghe richiedono minuti."))
+        "file o metadato): correggilo in NocoDB. File grandi o scansioni lunghe richiedono minuti (Docling circa "
+        "3 secondi a pagina): tieni il computer collegato e non chiudere il coperchio. Se Docling è spento WF01 "
+        "usa Tika e lo scrive in `note`."))
     t = w.trigger_manuale()
     p = w.parametri([["cartella_inbox", "/dati/inbox"], ["lingua_ocr", "ita+eng"],
-                     ["licenza_predefinita", "da verificare"]])
+                     ["licenza_predefinita", "da verificare"], ["motore_pdf_e_immagini", "tika"]])
     w.nota_gruppo("Nota · lettura", "Legge tutti i file della cartella e li tratta **uno alla volta**.", 2, 0)
     leggi = w.leggi_file("Leggi i file della cartella", "={{ $json.cartella_inbox }}/*", (2, 0))
     ciclo = w.ciclo("Un documento alla volta", (3, 0))
@@ -328,8 +340,32 @@ def wf01():
     meta = w.set("Leggi i metadati", [
         ["meta", "={{ JSON.parse($json.tika)[0] }}", "object"],
     ], (9, 1))
+    # Docling (ADR-006): solo PDF e immagini, solo se scelto in PARAMETRI; se non risponde resta il testo di Tika.
+    testo_tika = "={{ ($('Leggi i metadati').item.json.meta['X-TIKA:content'] || '').trim() }}"
+    w.nota_gruppo("Nota · Docling", "Con `motore_pdf_e_immagini` = `docling` i PDF e le immagini passano da Docling "
+                  "(impaginazione, tabelle, OCR RapidOCR). Se Docling è spento resta il testo di Tika.", 10, 2, 4)
+    usa = w.se("Usa Docling?", "={{ $('PARAMETRI').first().json.motore_pdf_e_immagini === 'docling' && "
+               "/^(image\\/|application\\/pdf)/.test($('Calcola l\\'impronta').item.json.mimeType) }}",
+               "boolean", "true", (10, 1))
+    da_tika = w.set("Testo da Tika", [["testo_estratto", testo_tika], ["nota_estrazione", "Testo estratto con Tika."]], (12, 1))
+    rilegg_d = w.leggi_file("Rileggi il file per Docling", "={{ $('PARAMETRI').first().json.cartella_inbox }}/{{ $('Calcola l\\'impronta').item.json.fileName }}", (11, 2))
+    docling = w.http("Estrai il testo (Docling)", "POST", DOCLING + "/v1/convert/file", (12, 2), timeout=1800000, modulo=[
+        ["files", "@data"], ["to_formats", "md"], ["do_ocr", "true"], ["force_ocr", "false"], ["ocr_preset", "rapidocr"],
+        ["ocr_lang", "={{ ({ ita: 'it', eng: 'en', lat: 'la', fra: 'fr', deu: 'de', spa: 'es' })"
+                     "[$('PARAMETRI').first().json.lingua_ocr.split('+')[0]] || 'it' }}"],
+        ["image_export_mode", "placeholder"], ["table_mode", "accurate"]])
+    da_docling = w.set("Testo da Docling", [
+        ["testo_estratto", "={{ (($json.document && $json.document.md_content) || '').trim() || " + testo_tika[4:-3] + " }}"],
+        ["nota_estrazione", "={{ (($json.document && $json.document.md_content) || '').trim() ? 'Testo estratto con Docling "
+                            "(RapidOCR, Markdown).' : 'Docling non ha restituito testo: testo estratto con Tika.' }}"],
+    ], (13, 2))
+    ripiego = w.set("Docling non risponde: uso Tika", [
+        ["testo_estratto", testo_tika],
+        ["nota_estrazione", "Docling non ha risposto: testo estratto con Tika. Per rifarlo con Docling attivalo dal "
+                            "pannello, elimina questo record e riesegui WF01."]], (13, 3))
+    scelto = w.nodo("Testo scelto", "n8n-nodes-base.noOp", 1, {}, (14, 1))
     ultimo_url, ultimo_q = nocodb_get("corpus_documenti", "(doc_id,notblank)", 1, ordina="-doc_id", campi="doc_id")
-    ultimo = w.http("Trova l'ultimo doc_id", "GET", ultimo_url, (10, 1), cred=CRED_NOCODB, query=ultimo_q)
+    ultimo = w.http("Trova l'ultimo doc_id", "GET", ultimo_url, (15, 1), cred=CRED_NOCODB, query=ultimo_q)
     rec = w.set("Prepara il record", [
         ["doc_id", PROSSIMO_DOC_ID],
         ["titolo", "={{ $('Leggi i metadati').item.json.meta['dc:title'] || $('Calcola l\\'impronta').item.json.fileName.replace(/\\.[^.]+$/, '') }}"],
@@ -342,24 +378,31 @@ def wf01():
         ["lingua", "={{ $('Leggi i metadati').item.json.meta['dc:language'] || '' }}"],
         ["qualita_ocr", "={{ /^(image|application\\/pdf)/.test($('Calcola l\\'impronta').item.json.mimeType) ? null : 'non_applicabile' }}"],
         ["stato", "acquisito"],
-        ["note", "={{ 'Tipo di file: ' + $('Calcola l\\'impronta').item.json.mimeType + '. Titolo e autore provvisori, da controllare.' }}"],
-        ["testo", "={{ ($('Leggi i metadati').item.json.meta['X-TIKA:content'] || '').trim() }}"],
-    ], (11, 1))
-    txt = w.testo_in_file("Testo in un file", "testo", "={{ $json.doc_id }}.txt", (12, 1))
-    salva = w.scrivi_file("Salva il testo", "=/dati/testi/{{ $('Prepara il record').item.json.doc_id }}.txt", (13, 1))
-    crea = w.http("Crea il record nel registro", "POST", NOCODB.format("corpus_documenti"), (14, 1), cred=CRED_NOCODB,
+        ["note", "={{ 'Tipo di file: ' + $('Calcola l\\'impronta').item.json.mimeType + '. ' + $('Testo scelto').item.json.nota_estrazione + ' Titolo e autore provvisori, da controllare.' }}"],
+        ["testo", "={{ $('Testo scelto').item.json.testo_estratto }}"],
+    ], (16, 1))
+    txt = w.testo_in_file("Testo in un file", "testo", "={{ $json.doc_id }}.txt", (17, 1))
+    salva = w.scrivi_file("Salva il testo", "=/dati/testi/{{ $('Prepara il record').item.json.doc_id }}.txt", (18, 1))
+    crea = w.http("Crea il record nel registro", "POST", NOCODB.format("corpus_documenti"), (19, 1), cred=CRED_NOCODB,
                   corpo="={{ JSON.stringify(Object.fromEntries(Object.entries($('Prepara il record').item.json).filter(e => e[0] !== 'testo'))) }}")
-    fatto = w.set("Documento acquisito", [["messaggio", "={{ 'Acquisito ' + $('Prepara il record').item.json.doc_id + ': ' + $('Prepara il record').item.json.titolo }}"]], (15, 1))
+    fatto = w.set("Documento acquisito", [["messaggio", "={{ 'Acquisito ' + $('Prepara il record').item.json.doc_id + ': ' + $('Prepara il record').item.json.titolo }}"]], (20, 1))
     w.catena(t, p, leggi, ciclo)
     w.collega(ciclo, imp, 1)
     w.catena(imp, dup, nuovo)
     w.collega(nuovo, rilegg, 0)
     w.collega(nuovo, salta, 1)
     w.collega(salta, ciclo)
-    w.catena(rilegg, tika, meta, ultimo, rec, txt, salva, crea, fatto)
+    w.catena(rilegg, tika, meta, usa)
+    w.collega(usa, rilegg_d, 0)
+    w.collega(usa, da_tika, 1)
+    w.catena(rilegg_d, docling, da_docling, scelto)
+    w.collega(docling, ripiego, 1)
+    w.collega(ripiego, scelto)
+    w.collega(da_tika, scelto)
+    w.catena(scelto, ultimo, rec, txt, salva, crea, fatto)
     w.collega(fatto, ciclo)
     e = w.ramo_errore(8, 4)
-    for n in (leggi, dup, rilegg, tika, ultimo, salva, crea):
+    for n in (leggi, dup, rilegg, tika, rilegg_d, ultimo, salva, crea):
         w.collega(n, e, 1)
     return w
 

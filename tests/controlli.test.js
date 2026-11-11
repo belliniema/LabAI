@@ -114,6 +114,11 @@ prove.push(prova('azioni del pannello: solo preferenze in .stato', function () {
   assert.strictEqual(fs.existsSync(path.join(dir, 'profilo-scelto')), false);
   c2.azionePannello('/azioni/neo4j', { attivo: true });
   assert.strictEqual(fs.existsSync(path.join(dir, 'neo4j-attivo')), true);
+  c2.azionePannello('/azioni/docling', { attivo: true });
+  assert.strictEqual(fs.existsSync(path.join(dir, 'docling-attivo')), true);
+  c2.azionePannello('/azioni/docling', { attivo: false });
+  assert.strictEqual(fs.existsSync(path.join(dir, 'docling-attivo')), false);
+  assert.strictEqual(c2.azionePannello('/azioni/altro', { attivo: true }), null);
 }));
 
 Promise.all(prove).then(function () {

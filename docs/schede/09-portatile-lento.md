@@ -9,8 +9,9 @@ I modelli linguistici sono pesanti. Un portatile lento non è un fallimento: è 
 5. **Accorcia i documenti molto lunghi**: indicizza le parti pertinenti alla domanda di ricerca e dichiaralo nel registro.
 6. **Indicizza di notte**: avvia WF05 a fine giornata, computer acceso e coperchio aperto.
 7. **Usa il grafo demo** in aula quando il tuo non è pronto.
-8. **Ferma il laboratorio** quando non lo usi (Ferma laboratorio) per restituire memoria al computer.
-9. Se nulla basta: chiedi una **postazione di dipartimento** o un portatile in prestito.
+8. **Disattiva Docling** dal pannello se non hai PDF scansionati da leggere: restituisce fino a 3 GB di memoria.
+9. **Ferma il laboratorio** quando non lo usi (Ferma laboratorio) per restituire memoria al computer.
+10. Se nulla basta: chiedi una **postazione di dipartimento** o un portatile in prestito.
 
 | Sintomo | Causa probabile | Rimedio |
 | --- | --- | --- |

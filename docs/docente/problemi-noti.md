@@ -20,6 +20,25 @@ Corretti durante la prova:
   riprova fino a 3 volte (il download riprende da dove si era fermato).
 - **Spazio su disco**: i 15 GB sono richiesti solo se mancano immagini Docker da scaricare.
 
+## Verificato il 2026-11-11: Docling (profilo `scansioni`, ADR-006)
+
+Attivazione dal pannello → «Avvia laboratorio» → riquadro verde, nessuna porta pubblicata. WF01
+con `motore_pdf_e_immagini = docling` su una scansione sintetica di 8 pagine e un `.txt`: il PDF
+passa da Docling (Markdown, 18,6 mila caratteri), il `.txt` da Tika, motore scritto in `note`;
+43 s in tutto, picco di Docling 2,46 GB su 3 GB. Con Docling fermo WF01 ripiega su Tika senza
+errori. Rilancio idempotente del launcher con Docling attivo. Da sapere:
+
+- **EasyOCR supera i 5 GB** su una sola pagina e il container viene ucciso: WF01 fissa
+  `ocr_preset=rapidocr`. Il Tesseract dell'immagine Docling ha solo l'inglese.
+- **Esecuzione di un workflow dalla CLI** con n8n acceso: `n8n execute` fallisce con *Task
+  Broker's port 5679 is already in use*; funziona con
+  `docker compose exec -e N8N_RUNNERS_BROKER_PORT=5699 -e QUEUE_HEALTH_CHECK_PORT=5698 n8n n8n execute --id <id>`.
+- **Reimportare un solo workflow** aggiornato senza rifare init: sostituire i segnaposto
+  `__TBL_<tabella>__` con gli id in `/home/node/.n8n/laboratorio-registri.json` e usare
+  `n8n import:workflow --input=<file>` (stesso id: sovrascrive). Gli studenti che hanno già fatto
+  il primo avvio non ricevono il nuovo WF01 finché non esiste un comando di aggiornamento (punto 3).
+- **Disco**: l'immagine pesa 4,8 GB. Da misurare su Windows e Linux il tempo per pagina (fase 4).
+
 ## Ancora da verificare
 
 1. **Import CLI di n8n** prima della creazione dell'account proprietario: l'import riesce;

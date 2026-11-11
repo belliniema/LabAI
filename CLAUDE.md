@@ -83,6 +83,7 @@ su Linux aggiungi `extra_hosts: ["host.docker.internal:host-gateway"]`.
 | LightRAG demo | stessa immagine | 9622 | grafo pre-costruito, sola lettura |
 | Apache Tika | `apache/tika:<versione>-full` (OCR) | nessuna | — |
 | Neo4j Community | `neo4j:5.26-community` + APOC | 7474 / 7687 | solo profilo `avanzato` |
+| Docling | `quay.io/docling-project/docling-serve-cpu` | nessuna | solo profilo `scansioni` (ADR-006) |
 
 Niente Postgres né altri server di database: meno memoria, meno guasti. Imposta limiti di memoria
 per ogni container. Verifica su documentazione e `env.example` della versione fissata nomi
@@ -267,7 +268,7 @@ permettere di contare facilmente correzioni del grafo, domande verificate ed err
 | ID | Nome | Comportamento atteso |
 | --- | --- | --- |
 | WF00 | Chat di prova | Chat diretta con Ollama per L3: temperatura e modello modificabili in `PARAMETRI`. Non scrive nel corpus. |
-| WF01 | Ingestione da cartella | Legge `inbox/`, invia ogni file a Tika, salva il testo in `testi/`, calcola hash, crea il record con stato `acquisito`, salta i duplicati. |
+| WF01 | Ingestione da cartella | Legge `inbox/`, invia ogni file a Tika (PDF e immagini a Docling se scelto in `PARAMETRI` e attivo, altrimenti Tika), salva il testo in `testi/`, calcola hash, crea il record con stato `acquisito`, salta i duplicati. |
 | WF02 | Ingestione dal web | Legge i record `da_acquisire` con URL; scarta domini fuori `allowlist_domini.txt`; rispetta robots.txt e un ritardo tra richieste; estrae il testo leggibile; registra URL, data, hash. |
 | WF03 | Ingestione da banche dati | Modelli preconfigurati per Wikidata (SPARQL), Europeana, Internet Archive; fonte e query in `PARAMETRI`. |
 | WF04 | Controllo di sicurezza e pulizia | Controlli della sezione 10.2; sospetti → `in_quarantena` + segnalazione. Normalizza spazi e a-capo; non modifica il contenuto. |

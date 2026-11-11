@@ -21,7 +21,7 @@ mkdir -p "$DEST/immagini" "$DEST/modelli"
 echo "== Immagini Docker"
 cd "$RADICE/kit"
 immagini="$(N8N_ENCRYPTION_KEY=x NC_ADMIN_EMAIL=a@b.it NC_ADMIN_PASSWORD=x NC_AUTH_JWT_SECRET=x LIGHTRAG_API_KEY=x \
-  LIGHTRAG_DEMO_API_KEY=x NEO4J_PASSWORD=x "$DOCKER" compose -f compose.yml --profile avanzato config --images | sort -u)"
+  LIGHTRAG_DEMO_API_KEY=x NEO4J_PASSWORD=x "$DOCKER" compose -f compose.yml --profile avanzato --profile scansioni config --images | sort -u)"
 for img in $immagini; do
   file="$DEST/immagini/$(echo "$img" | tr '/:' '__').tar"
   if [ -f "$file" ]; then echo "  già presente: $img"; continue; fi
@@ -36,7 +36,7 @@ copia_modello() {
   case "$nome" in *:*) tag="${nome##*:}"; nome="${nome%%:*}";; esac
   base="manifests/registry.ollama.ai/library/$nome/$tag"
   if [ ! -f "$MODELLI_OLLAMA/$base" ]; then
-    echo "  manca $nome:$tag in Ollama: esegui prima «ollama pull $nome:$tag»" >&2; exit 1
+    echo "  manca $nome:$tag in Ollama: esegui prima «ollama pull $nome:${tag}»" >&2; exit 1
   fi
   mkdir -p "$DEST/modelli/$(dirname "$base")" "$DEST/modelli/blobs"
   cp "$MODELLI_OLLAMA/$base" "$DEST/modelli/$base"
